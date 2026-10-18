@@ -21,20 +21,17 @@ and, where the firmware has a hashing tool, sha256 are compared after upload.
 import sys, os, re, time, random, base64, hashlib, tarfile, tempfile, warnings
 
 warnings.filterwarnings("ignore")
-import telnetlib
 
-IP = os.environ.get("TV_IP", "192.168.1.100")   # export TV_IP=<your-tv>
-PORT = int(os.environ.get("TV_TELNET_PORT", "23"))
+# The telnet session helper (and the Python 3.13 fallback client) lives in
+# tvtelnet.py next to this file, so both tools share one implementation.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from tvtelnet import connect, IP, PORT   # noqa: E402
+
 CHUNK = 700
 
 
 def session():
-    tn = telnetlib.Telnet(IP, PORT, timeout=15)
-    time.sleep(0.4)
-    try:
-        tn.read_very_eager()
-    except Exception:
-        pass
+    tn = connect()
     # ask the pty to stop echoing the input; if it refuses, run() filters the
     # echo out, but a quiet session makes the output readable
     tn.write(b"stty -echo 2>/dev/null\n")
@@ -169,6 +166,9 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(2)
+    if sys.argv[1] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
     mode = sys.argv[1]
     tn = session()
     try:
