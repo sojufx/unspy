@@ -1,0 +1,86 @@
+#!/bin/sh
+# Inject the LG Input Hook into the input daemons, and keep it injected.
+#
+# The hook is a shared library poked into the running input daemons; every reboot
+# loses it, so it has to be redone. This supervisor is what makes the remote's
+# HOME button open the custom launcher.
+#
+# Started as early as possible (see inputhook-early.sh) and re-checked all the time,
+# for two reasons:
+#   * the daemons have to be hooked the moment they appear, otherwise HOME falls
+#     through to LG's home screen until the hook lands;
+#   * an injection dies with its process, so a restarted daemon needs re-hooking.
+#
+# On this TV the remote's buttons are carried by micomservice (which writes the
+# keycodes to /dev/uinput) - it starts before lginput2 - but all the known
+# candidates are hooked, whichever of them exists.
+DIR=/media/developer/apps/usr/palm/services/org.webosbrew.inputhook.service/inputhook
+TARGETS="micomservice lginput2 tvservice RELEASE testapp"
+LOG=/tmp/inputhook-boot.log
+PIDFILE=/tmp/inputhook-supervisor.pid
+
+uptime_s() { cut -d. -f1 /proc/uptime; }
+log() { echo "[$(uptime_s)s] $*" >>"$LOG"; }
+
+# only one supervisor per boot
+if [ -f "$PIDFILE" ]; then
+	old=$(cat "$PIDFILE" 2>/dev/null)
+	if [ -n "$old" ] && kill -0 "$old" 2>/dev/null; then
+		log "supervisor already running as pid $old"
+		exit 0
+	fi
+fi
+echo $$ >"$PIDFILE"
+
+pidof_comm() {
+	for p in /proc/[0-9]*; do
+		if [ "$(cat "$p/comm" 2>/dev/null)" = "$1" ]; then
+			basename "$p"
+			return 0
+		fi
+	done
+	return 1
+}
+
+log "supervisor start"
+
+# the binaries live on the devmode partition, which mounts mid-boot
+i=0
+while [ $i -lt 300 ] && [ ! -x "$DIR/ezinject" ]; do
+	i=$((i + 1)); sleep 1
+done
+log "ezinject $( [ -x "$DIR/ezinject" ] && echo available || echo MISSING )"
+
+# Fast polling at first (so the hook lands before the TV is usable), then slow
+# enough to be free, forever, so restarted daemons get re-hooked.
+fast=180
+i=0
+while :; do
+	if [ -x "$DIR/ezinject" ]; then
+		for name in $TARGETS; do
+			pid=$(pidof_comm "$name") || continue
+			grep -q libinputhookpp "/proc/$pid/maps" 2>/dev/null && continue
+
+			"$DIR/ezinject" -l "/tmp/lginput-hook-$name.log" "$pid" \
+				"$DIR/libinputhookpp.so" >"/tmp/ezinject-$name.log" 2>&1
+
+			if grep -q libinputhookpp "/proc/$pid/maps" 2>/dev/null; then
+				log "$name ($pid) hooked"
+				rm -f "/tmp/inputhook-fail-$name"
+				# tell the app's own loader the work is done, so it will not inject twice
+				touch /tmp/inputhook
+			elif [ "$(cat "/tmp/inputhook-fail-$name" 2>/dev/null)" != "$pid" ]; then
+				# log a failure once per process, not once per poll
+				echo "$pid" >"/tmp/inputhook-fail-$name"
+				log "$name ($pid) FAILED: $(tail -1 "/tmp/ezinject-$name.log" 2>/dev/null)"
+			fi
+		done
+	fi
+
+	i=$((i + 1))
+	if [ $i -lt "$fast" ]; then
+		sleep 1
+	else
+		sleep 20
+	fi
+done

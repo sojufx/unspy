@@ -1,0 +1,68 @@
+#!/bin/sh
+# 50-debloat-blocklist
+# Installed to /var/lib/webosbrew/init.d/ - Homebrew Channel runs this on every boot.
+#
+# Purpose: blackhole LG's ad / ACR / telemetry / firmware-update endpoints.
+# Mechanism: /etc is a read-only squashfs overlay, so we generate a hosts file in
+# /tmp and bind-mount it over /etc/hosts (the same trick HB Channel's startup uses).
+#
+# REVERT:  rm /var/lib/webosbrew/init.d/50-debloat-blocklist; umount /etc/hosts; reboot
+
+# --- endpoints verified to resolve, taken from live TV traffic + community lists ---
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+export PATH
+
+DOMAINS="
+ad.lgappstv.com
+ads.lgappstv.com
+lgsmartad.com
+eu.lgsmartad.com
+us.lgsmartad.com
+us.lgtvsdp.com
+eu.lgtvsdp.com
+sb.lgtvsdp.com
+sdp.lgtvsdp.com
+info.lgtvsdp.com
+lgtvcommon.com
+alphonso.tv
+www.alphonso.tv
+aci.lge.com
+aci-api.lge.com
+lgtvonline.lge.com
+ngfts.lge.com
+snu.lge.com
+su.lge.com
+su-ssl.lge.com
+su-dev.lge.com
+"
+
+# where blocked names go - note: the TV is already in store mode, nothing here
+# should point at a real address
+H=/tmp/debloat-hosts
+
+{
+  echo "127.0.0.1 localhost.localdomain localhost"
+  echo "::1 localhost ip6-localhost ip6-loopback"
+  echo "fe00::0 ip6-localnet"
+  echo "ff00::0 ip6-mcastprefix"
+  echo "ff02::1 ip6-allnodes"
+  echo "ff02::2 ip6-allrouters"
+  echo ""
+  echo "# ---- LG ad / ACR / telemetry / update blackhole (webos-debloat) ----"
+  for d in $DOMAINS; do
+    [ -n "$d" ] || continue
+    echo "127.0.0.1 $d"
+    echo "::1 $d"
+  done
+} > "$H"
+
+# Bind our generated hosts over the real one. Safe to stack on top of a bind
+# mount created by HB Channel's own startup script.
+mount --bind "$H" /etc/hosts 2>/dev/null || true
+
+# sanity: prove the block is live
+if grep -q "webos-debloat" /etc/hosts 2>/dev/null; then
+  echo "[debloat] hosts blacklist active"
+else
+  echo "[debloat] WARNING: hosts blacklist NOT active" >&2
+fi

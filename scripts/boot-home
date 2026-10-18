@@ -1,0 +1,94 @@
+#!/bin/sh
+# Put the launcher in front at boot, and keep LG's home screen from winning while the
+# HOME button remap is not in place yet.
+#
+# Two jobs, in order:
+#
+#   1. Boot into the launcher. webOS comes up on whatever it last showed - on this TV
+#      that was an input (HDMI1), or its own home screen - so the launcher is brought
+#      to the front. It is only re-asserted while it fails to hold the front, and only
+#      for SETTLE seconds, so this does not fight you if you go straight to an app.
+#
+#   2. Until the hook is loaded into micomservice, a HOME press would open LG's home
+#      screen. Rather than race the injection, this replaces LG's home screen with the
+#      launcher and keeps doing so until the hook is confirmed live - and then stops,
+#      which is what keeps the launcher's own "LG Home" tile working normally.
+#
+# The hook that remaps HOME is inputhook-supervisor; this is only the safety net for the
+# seconds before it lands.
+APP=works.partridge.webos-launcher
+SETTLE=20      # seconds of "get the launcher up" phase after boot
+MAX=300        # hard stop, whatever happens
+LOG=/tmp/boot-home.log
+PIDFILE=/tmp/boot-home.pid
+
+uptime_s() { cut -d. -f1 /proc/uptime; }
+log() { echo "[$(uptime_s)s] $*" >>"$LOG"; }
+
+# this gets started both from the early hook and from the init.d fallback
+if [ -f "$PIDFILE" ]; then
+	old=$(cat "$PIDFILE" 2>/dev/null)
+	if [ -n "$old" ] && kill -0 "$old" 2>/dev/null; then
+		log "already running as pid $old"
+		exit 0
+	fi
+fi
+echo $$ >"$PIDFILE"
+
+# Is the input hook actually loaded into the daemon that carries the remote's buttons?
+# On this TV that is micomservice - it is what writes the keycodes to /dev/uinput.
+# lginput2 gets hooked too, but HOME does not come through it, and it is hooked much
+# sooner, so using it here would stop this loop far too early.
+hook_live() {
+	for p in /proc/[0-9]*; do
+		if [ "$(cat "$p/comm" 2>/dev/null)" = "micomservice" ] && grep -q libinputhookpp "$p/maps" 2>/dev/null; then
+			return 0
+		fi
+	done
+	return 1
+}
+
+foreground() {
+	luna-send -n 1 luna://com.webos.applicationManager/getForegroundAppInfo '{}' 2>/dev/null \
+		| sed -n 's/.*"appId":"\([^"]*\)".*/\1/p'
+}
+
+launch() {
+	luna-send -n 1 luna://com.webos.applicationManager/launch "{\"id\":\"$APP\"}" >/dev/null 2>&1
+}
+
+log "boot-home start"
+settle_until=$(( $(uptime_s) + SETTLE ))
+end=$(( $(uptime_s) + MAX ))
+held=0
+
+while [ "$(uptime_s)" -lt "$end" ]; do
+	if hook_live; then
+		log "hook is live, stopping"
+		break
+	fi
+
+	fg=$(foreground)
+	if [ "$fg" = "$APP" ]; then
+		held=$((held + 1))
+		if [ "$held" -ge 3 ]; then
+			settle_until=0    # it is holding the front: stop re-asserting it
+		fi
+		sleep 1
+		continue
+	fi
+	held=0
+
+	if [ "$(uptime_s)" -lt "$settle_until" ]; then
+		log "foreground '$fg' at boot -> showing the launcher"
+		launch
+		sleep 1
+	elif [ "$fg" = "com.webos.app.home" ]; then
+		log "LG home is in the foreground -> showing the launcher"
+		launch
+		sleep 1
+	else
+		sleep 2
+	fi
+done
+log "boot-home done"

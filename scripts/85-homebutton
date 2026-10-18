@@ -1,0 +1,13 @@
+#!/bin/sh
+# Boot hook: fallback start for the home-screen hooks.
+#
+# The real work happens earlier. startup.sh lives on this writable path, so
+# /var/lib/webosbrew/early-hooks is called near the top of it - devmode.service runs
+# startup.sh at ~21s, while run-parts does not reach this directory until ~42s, and
+# the HOME button has to be remapped before the TV becomes usable.
+#
+# This file stays as a safety net: if that startup.sh hook is ever lost (a Homebrew
+# Channel update can overwrite startup.sh), the hooks still come up from here.
+setsid /var/lib/webosbrew/inputhook-supervisor >>/tmp/inputhook-boot.log 2>&1 &
+setsid /var/lib/webosbrew/boot-home >>/tmp/boot-home.log 2>&1 &
+exit 0

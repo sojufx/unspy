@@ -1,0 +1,87 @@
+#!/bin/sh
+# 65-debloat-homescreen
+# Installed to /var/lib/webosbrew/init.d/ - runs on every boot.
+#
+# Purpose: strip the LG "shop window" out of the Home screen.
+#
+# webOS 6 draws its home screen as com.webos.app.home (a signed, read-only native
+# shell) pulling in rails/tiles from other preinstalled apps. There is no
+# supported setting to hide those rails - everything LG exposes (homePromotion,
+# personalRecommend, aiChannel, channelplus, promotionStreamer,
+# webOSPromotionVideo) is already off. So the only lever left is to make the
+# promo apps unlaunchable, exactly as 60-debloat-hideapps does.
+#
+# Contents confirmed against the live TV before masking ("title"/"visible"
+# inspected; enactbrowser/voiceweb/google.assistant are already visible:false).
+#
+# NOT hidden (deliberately):
+#   com.webos.app.home        the launcher itself - hiding this breaks the TV
+#   ui30                      the UI shell
+#   com.webos.app.*input*     HDMI/AV inputs
+#   com.webos.app.livetv      Live TV (functional)
+#   com.palm.app.settings     Settings
+#   com.webos.app.acr*        LivePlus/ACR apps - already off + blackholed,
+#                             and hiding them can break the Settings toggle
+#
+# REVERT (this file only):
+#   rm /var/lib/webosbrew/init.d/65-debloat-homescreen
+#   for a in $(...); do umount /usr/palm/applications/$a; done
+#   reboot
+# Or revert live, right now, without rebooting:
+#   sh /var/lib/webosbrew/init.d/65-debloat-homescreen --revert
+
+EMPTY=/tmp/debloat-empty
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+export PATH
+
+APPS="
+com.webos.app.discovery
+com.webos.app.livepick
+com.webos.app.livedmost
+com.webos.app.igallery
+com.webos.app.membership
+google.assistant
+amazon.alexa.view
+amazon.alexapr
+com.webos.app.beanbrowser
+com.webos.app.enactbrowser
+com.webos.app.voiceweb
+"
+
+BASES="/usr/palm/applications /mnt/otncabi/usr/palm/applications"
+
+if [ "$1" = "--revert" ]; then
+  n=0
+  for a in $APPS; do
+    for b in $BASES; do
+      d="$b/$a"
+      while awk '{print $2}' /proc/mounts 2>/dev/null | grep -qx "$d"; do
+        umount "$d" 2>/dev/null || break
+        n=$((n+1))
+      done
+    done
+  done
+  echo "[debloat] un-hid $n home-screen app directories"
+  exit 0
+fi
+
+mkdir -p "$EMPTY"
+
+n=0
+for a in $APPS; do
+  [ -n "$a" ] || continue
+  for b in $BASES; do
+    d="$b/$a"
+    [ -d "$d" ] || continue
+    # idempotent: skip anything already hidden, so repeated runs never stack mounts
+    if awk '{print $2}' /proc/mounts 2>/dev/null | grep -qx "$d"; then
+      n=$((n+1))
+      continue
+    fi
+    if mount --bind "$EMPTY" "$d" 2>/dev/null; then
+      n=$((n+1))
+    fi
+  done
+done
+
+echo "[debloat] home screen: hid $n app directories"

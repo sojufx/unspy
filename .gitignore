@@ -1,0 +1,19 @@
+# build output
+node_modules/
+dist/
+build/
+*.ipk
+*.manifest.json
+
+# local, per-person settings and local data
+tv.env
+launcher/src/config/catalog.local.ts
+
+# editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# logs and scratch
+*.log

@@ -1,0 +1,50 @@
+#!/bin/sh
+# 70-debloat-novoice
+# Installed to /var/lib/webosbrew/init.d/ - runs on every boot.
+#
+# Purpose: remove the TV's voice / microphone capture path.
+#
+# Why: the Sept 2026 Gamers Nexus / Level1Techs report alleged LG TVs could
+# capture audio after voice activation and in standby, then upload transcripts.
+# The consent flags on this set were already declined (/var/luna/preferences/eula:
+# voiceAllowed:false, voice2Allowed:false, acrAllowed:false), but we also stop the
+# capture daemons so there is no audio pipeline at all.
+#
+# What it does:
+#   systemctl stop voiceinput.service      -> microphone capture
+#   systemctl stop voiceconductor.service  -> voice interaction orchestration
+# Both are `static` units with Restart=on-failure, so a CLEAN stop keeps them down
+# for the session. systemd starts them again next boot, hence this hook.
+#
+# Deliberately NOT hidden: com.webos.app.voice. Despite the name it is the "Search"
+# app (appinfo title "Search", params.launchMode "vkb"), so masking it would remove
+# ordinary keyboard search too. Not what was asked for.
+#
+# REVERT: rm /var/lib/webosbrew/init.d/70-debloat-novoice && reboot
+#         or, immediately:  systemctl start voiceinput.service voiceconductor.service
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+export PATH
+
+for u in voiceinput.service voiceconductor.service; do
+  /bin/systemctl stop "$u" 2>/dev/null && echo "[debloat] stopped $u"
+done
+
+# systemd may still be bringing them up at this point; give it a moment then re-stop
+sleep 2
+for u in voiceinput.service voiceconductor.service; do
+  /bin/systemctl stop "$u" 2>/dev/null
+done
+
+# verify, and complain loudly if the capture daemon survived
+if ps -ef 2>/dev/null | grep -v grep | grep -q "/usr/sbin/voiceinput"; then
+  echo "[debloat] WARNING: voiceinput STILL RUNNING" >&2
+else
+  echo "[debloat] voice capture disabled (voiceinput stopped)"
+fi
+
+if ps -ef 2>/dev/null | grep -v grep | grep -q "/usr/sbin/voiceconductor"; then
+  echo "[debloat] WARNING: voiceconductor STILL RUNNING" >&2
+else
+  echo "[debloat] voice orchestration disabled (voiceconductor stopped)"
+fi

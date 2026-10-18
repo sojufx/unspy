@@ -1,0 +1,101 @@
+#!/bin/sh
+# 80-debloat-nodiscovery
+# Installed to /var/lib/webosbrew/init.d/ - runs on every boot.
+#
+# Purpose: stop the TV enumerating devices on the LAN and advertising itself.
+# The Sept 2026 Gamers Nexus / Level1Techs report alleged LG TVs enumerate nearby
+# devices (phones, watches, routers, thermostats, air purifiers, PCs, server BMCs)
+# well beyond what pairing needs, and that the data is collected.
+#
+# Three layers, because no single one is sufficient:
+#
+#  1. systemd units stopped:
+#       avahi-daemon.socket/.service, avahi-adaptor.service, mdnsd.service,
+#       ssdp-discovery-lgtv.service, ssc.service
+#     (the .socket matters - otherwise it respawns avahi on demand)
+#
+#  2. luna services disabled by bind-mounting an empty dir over their service
+#     directory, so ls-hubd has nothing to launch:
+#       com.webos.service.homeconnect   - smart-home device enumeration
+#       com.webos.service.apiadapter    - companion-app API surface
+#
+#  3. firewall: `iconnectivity` and `upnpd` are supervised by ls-hubd and respawn
+#     immediately when killed, so we drop the discovery protocols at the packet
+#     level instead:
+#       UDP 1900 (SSDP/UPnP)  and  UDP 5353 (mDNS)  - both directions, v4 and v6
+#
+# WHAT THIS BREAKS (by design - revert if you want it back):
+#   - DLNA media browsing (TV discovering your Synology / Sonos by itself)
+#   - AirPlay / Miracast discovery *to* this TV, and it no longer advertises
+#     itself as LGwebOSTV.local
+#   - LG ThinQ mobile app control of this TV
+#
+# REVERT: rm /var/lib/webosbrew/init.d/80-debloat-nodiscovery && reboot
+#   or immediately:
+#     systemctl start avahi-daemon.socket avahi-daemon.service avahi-adaptor.service \
+#                      mdnsd.service ssdp-discovery-lgtv.service ssc.service
+#     umount /usr/palm/services/com.webos.service.homeconnect
+#     umount /usr/palm/services/com.webos.service.apiadapter
+#     for r in "OUTPUT -p udp --dport 1900" "INPUT -p udp --dport 1900" \
+#              "OUTPUT -p udp --dport 5353" "INPUT -p udp --dport 5353"; do
+#       iptables -D $r -j DROP; ip6tables -D $r -j DROP
+#     done
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+export PATH
+
+EMPTY=/tmp/debloat-empty
+mkdir -p "$EMPTY"
+
+# ---------------------------------------------------------------- 1. luna dirs
+for s in com.webos.service.homeconnect com.webos.service.apiadapter; do
+  d=/usr/palm/services/$s
+  [ -d "$d" ] || continue
+  if awk '{print $2}' /proc/mounts 2>/dev/null | grep -qx "$d"; then
+    continue
+  fi
+  mount --bind "$EMPTY" "$d" 2>/dev/null && echo "[debloat] hidden service $s"
+done
+
+# ------------------------------------------------------------ 2. systemd units
+# Some of these are pulled up by systemd slightly *after* this hook runs, so stop
+# them, wait, stop again, and leave a detached re-stop to catch late starts.
+stop_units() {
+  for u in avahi-daemon.socket avahi-daemon.service avahi-adaptor.service \
+           mdnsd.service ssdp-discovery-lgtv.service ssc.service; do
+    /bin/systemctl stop "$u" 2>/dev/null
+  done
+}
+stop_units
+( sleep 25; stop_units ) </dev/null >/dev/null 2>&1 &
+
+# ---------------------------------------------------------- 3. kill what's left
+for p in com.webos.service.homeconnect ss.apiadapter; do
+  PIDS=$(ps -ef 2>/dev/null | grep -v grep | grep "$p" | awk '{print $2}')
+  [ -n "$PIDS" ] && kill $PIDS 2>/dev/null
+done
+
+# ------------------------------------------------------------- 4. firewall drop
+addrule() {
+  c=$1; shift
+  if ! $c -C "$@" 2>/dev/null; then
+    $c -A "$@" 2>/dev/null && echo "[debloat] $c: $*"
+  fi
+}
+for c in iptables ip6tables; do
+  command -v $c >/dev/null 2>&1 || continue
+  addrule $c OUTPUT -p udp --dport 1900 -j DROP
+  addrule $c INPUT  -p udp --dport 1900 -j DROP
+  addrule $c OUTPUT -p udp --dport 5353 -j DROP
+  addrule $c INPUT  -p udp --dport 5353 -j DROP
+done
+
+# ---------------------------------------------------------------- 5. report
+sleep 1
+n=$(iptables -S 2>/dev/null | grep -c 'dport 1900\|dport 5353')
+echo "[debloat] discovery firewall rules present: $n / 4 (IPv4)"
+if ! ip6tables -S >/dev/null 2>&1; then
+  echo "[debloat] NOTE: this kernel has no ip6_tables, so IPv6 discovery cannot be" >&2
+  echo "[debloat]       firewalled on-device (block it at the router if you care)" >&2
+fi
+echo "[debloat] LAN discovery / device enumeration disabled"

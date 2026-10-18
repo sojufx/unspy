@@ -1,0 +1,11 @@
+#!/bin/sh
+# Start the home-screen hooks as early as possible.
+#
+# Called from the top of startup.sh, which is far earlier than its own run-parts call
+# at the end of the file (that lands ~42s on this TV; the input daemons are up at ~13s
+# and the TV is usable from ~30s). Everything here is backgrounded so the boot is not
+# delayed.
+echo "[$(cut -d. -f1 /proc/uptime)s] startup.sh early hooks" >>/tmp/inputhook-boot.log
+setsid /var/lib/webosbrew/inputhook-supervisor >>/tmp/inputhook-boot.log 2>&1 &
+setsid /var/lib/webosbrew/boot-home >>/tmp/boot-home.log 2>&1 &
+exit 0
