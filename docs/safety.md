@@ -29,7 +29,7 @@ There is no patched binary, no modified system app, no custom kernel, and no cha
 
 | Artifact | Lives at | What it does | Undo |
 |---|---|---|---|
-| `50-debloat-blocklist` | `/var/lib/webosbrew/init.d/` | generates `/tmp/hosts`, bind-mounts it over `/etc/hosts` | delete the file, then `umount /etc/hosts` |
+| `50-debloat-blocklist` | `/var/lib/webosbrew/init.d/` | generates `/tmp/debloat-hosts`, bind-mounts it over `/etc/hosts` | delete the file, then `umount /etc/hosts` |
 | `60-debloat-hideapps` | `init.d` | bind-mounts an empty dir over 25 app dirs in `/usr/palm/applications` and `/mnt/otncabi/…` | delete the file; `umount` each dir, or reboot |
 | `65-debloat-homescreen` | `init.d` | same, for 11 home-screen promo apps | `sh scripts/65-debloat-homescreen --revert` |
 | `70-debloat-novoice` | `init.d` | `systemctl stop voiceinput/voiceconductor` | delete the file; `systemctl start voiceinput.service voiceconductor.service` |
@@ -42,10 +42,17 @@ There is no patched binary, no modified system app, no custom kernel, and no cha
 | the launcher | installed app | a normal app, `systemApp: false` | uninstall it from the Homebrew Channel |
 | the keybind | LG Input Hook service dir | maps key 773 → launcher | delete the keybind file |
 
-**Those bind-mounts are the only "invisible" changes**, and they are all visible:
+**Those bind-mounts are the only "invisible" changes**, and they are all visible. Note the
+one gotcha: on this TV a bind-mount of a directory that lives on tmpfs is reported with
+**`tmpfs` in the source field**, not the source path — so search the *mount point*:
 
 ```sh
-cat /proc/mounts | grep -e debloat-empty -e /etc/hosts
+# every app dir we masked (a tmpfs mounted over a read-only one)
+awk '$1=="tmpfs" && $2 ~ /palm\/applications/ {print $2}' /proc/mounts
+
+# the blocklist, by its content rather than by how it is mounted
+# (our generated section starts at the line containing "webos-debloat")
+sed -n '/webos-debloat/,$p' /etc/hosts | grep -c '^127\.0\.0\.1'   # -> 21 names blackholed
 ```
 
 ---
@@ -95,9 +102,14 @@ reboot
 ```sh
 rm -f /var/lib/webosbrew/init.d/{50-debloat-blocklist,60-debloat-hideapps,65-debloat-homescreen,70-debloat-novoice,80-debloat-nodiscovery,85-homebutton}
 rm -f /var/lib/webosbrew/{early-hooks,inputhook-supervisor,boot-home}
-sh scripts/debloat-settings.sh --defaults     # optional: no-op if you'd rather use the menus
 reboot
 ```
+
+The **settings** are the one thing a file-delete does not undo — they live in the TV's own
+settings service, so flip them back in the TV's menus (Settings → General / Options), or
+re-apply the originals you captured by running `scripts/debloat-settings.sh` *before* you
+start. The script prints the before and after values of every key it touches, precisely so
+you have them.
 
 Or, non-destructively, undo the mounts for the current session only:
 
@@ -164,13 +176,23 @@ path you rooted through. It restores the stock image.
 
 ## Verify the state at any time
 
+The helper tools read your TV's address from the `TV_IP` environment variable (nothing is
+hardcoded — set it once, or pass it per command):
+
 ```sh
-sh tools/tvtelnet.py 'cat /proc/mounts | grep debloat-empty'   # what is hidden
-sh tools/tvtelnet.py 'cat /tmp/inputhook-boot.log'             # hook timeline, this boot
-sh tools/tvtelnet.py 'cat /tmp/boot-home.log'                  # launcher at boot
-sh tools/tvtelnet.py 'ps -ef | grep -E "voiceinput|avahi|ssdp"' # what is still running
-sh tools/tvtelnet.py 'iptables -S | grep dport'                 # discovery rules
-sh tools/tvtelnet.py 'cat /tmp/hosts'                          # the blocklist in force
+export TV_IP=192.168.1.100     # or: TV_IP=... python3 tools/tvtelnet.py '...'
+```
+
+```sh
+# what is hidden: a tmpfs over each masked app dir (grep the MOUNT POINT)
+python3 tools/tvtelnet.py 'awk "\$1==\"tmpfs\" && \$2 ~ /palm\/applications/ {print \$2}" /proc/mounts'
+
+python3 tools/tvtelnet.py 'cat /tmp/inputhook-boot.log'              # hook timeline, this boot
+python3 tools/tvtelnet.py 'cat /tmp/boot-home.log'                   # launcher at boot
+python3 tools/tvtelnet.py 'ps -ef | grep -E "voiceinput|avahi|ssdp"' # what is still running
+python3 tools/tvtelnet.py 'iptables -S | grep dport'                 # discovery rules
+python3 tools/tvtelnet.py 'sed -n "/webos-debloat/,\$p" /etc/hosts | grep -c "^127\.0\.0\.1"'   # names blackholed
+python3 tools/tvtelnet.py 'cat /tmp/debloat-hosts'                   # the blocklist we generated
 ```
 
 ---

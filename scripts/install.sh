@@ -1,12 +1,15 @@
 #!/bin/sh
 # install.sh - put the unspy boot hooks onto a rooted LG webOS TV.
 #
-# Run this ON THE TV, as root, from the directory that holds these scripts:
+# Run this ON THE TV, as root, with the scripts/ directory sitting next to it:
 #
-#   scp -r scripts root@<your-tv>:/tmp/unspy/
-#   ssh root@<your-tv> 'sh /tmp/unspy/scripts/install.sh'
+#   export TV_IP=<your-tv-ip>
+#   python3 tools/tvpush.py -r scripts /tmp/unspy
+#   python3 tools/tvtelnet.py 'sh /tmp/unspy/scripts/install.sh'
 #
-# Get the files over however you like (scp, `tools/tvpush.py`, a USB stick).
+# A rooted webOS TV gives you a telnet root shell (dejavuln / Homebrew Channel),
+# not SSH - the two helpers above are stdlib-only, so there is nothing to
+# install. Over SSH, scp/ssh work equally well.
 #
 # It is idempotent, it backs up anything it modifies, and it never touches a
 # read-only partition. Undo everything with:
@@ -47,6 +50,9 @@ if [ "$1" = "--revert" ]; then
 		say "  removed the early-hooks line from startup.sh"
 	fi
 	say "done. bind-mounts and stopped units clear on the next reboot."
+	say "note: TV *settings* live in the system settings service, not in files,"
+	say "      so --revert does not touch them - flip them back in the TV menus"
+	say "      or re-run debloat-settings.sh with your original values."
 	exit 0
 fi
 
@@ -152,12 +158,14 @@ done
 setsid "$BREW/early-hooks" >/dev/null 2>&1 &
 
 # ---------------------------------------------------------------- report
+# NOTE: bind-mounts of a directory on tmpfs are reported with "tmpfs" in the SOURCE
+# field, not the source path - so grep the MOUNT POINT, never /tmp/debloat-empty.
 say "installed. current state:"
 echo
-echo "  hidden app/service dirs : $(awk '{print $2}' /proc/mounts 2>/dev/null | grep -c debloat-empty)"
-echo "  /etc/hosts bind-mounted : $(awk '{print $2}' /proc/mounts 2>/dev/null | grep -c '^/etc/hosts$')"
+echo "  hidden app dirs         : $(awk '$1=="tmpfs" && $2 ~ /palm\/applications/ {n++} END {print n+0}' /proc/mounts 2>/dev/null)"
+echo "  blocklist active        : $(grep -q webos-debloat /etc/hosts 2>/dev/null && echo "yes ($(sed -n '/webos-debloat/,$p' /etc/hosts | grep -c '^127\.0\.0\.1') names blackholed)" || echo NO)"
 echo "  discovery firewall rules: $(iptables -S 2>/dev/null | grep -c 'dport 1900\|dport 5353') / 4 (IPv4; IPv6 may be unavailable)"
-echo "  blocklist hostnames     : $(grep -cv '^#\|^$' /tmp/hosts 2>/dev/null || echo '?')"
+echo "  voice capture stopped   : $(ps -ef 2>/dev/null | grep -v grep | grep -q /usr/sbin/voiceinput && echo NO || echo yes)"
 echo
 say "logs (this boot): /tmp/inputhook-boot.log  /tmp/boot-home.log"
 say "reboot to verify the full boot path: reboot"

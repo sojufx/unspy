@@ -8,13 +8,12 @@ Usage:
     ./tvtelnet.py 'id; uname -a'
     ./tvtelnet.py --raw 'cat /etc/version'
 """
-import sys, time, warnings
+import sys, os, time, random, warnings
 warnings.filterwarnings("ignore")
 import telnetlib, re
 
-IP = "192.168.1.100"
-PORT = 23
-MARK = "OC_9f3a_DONE"
+IP = os.environ.get("TV_IP", "192.168.1.100")   # export TV_IP=<your-tv>
+PORT = int(os.environ.get("TV_TELNET_PORT", "23"))
 
 
 def run(snippet: str, timeout: float = 60.0, raw: bool = False) -> str:
@@ -34,7 +33,13 @@ def run(snippet: str, timeout: float = 60.0, raw: bool = False) -> str:
         pass
 
     cmd = snippet.replace("\n", "; ")
-    tn.write((cmd + "; echo " + MARK + '\n').encode())
+    # The completion marker is randomised and emitted in two halves, so the
+    # command text we send can never contain it. Otherwise, when the pty does
+    # echo (stty -echo is best-effort), the echo of `echo MARK` matches
+    # instantly and we return the previous command's output instead.
+    tok = "%06x" % random.getrandbits(24)
+    mark = "OC_%s_DONE" % tok
+    tn.write(("%s; printf 'OC_%%s_DONE' %s\n" % (cmd, tok)).encode())
 
     buf = b""
     last = time.time()
@@ -49,7 +54,7 @@ def run(snippet: str, timeout: float = 60.0, raw: bool = False) -> str:
         if chunk:
             buf += chunk
             last = time.time()
-            if MARK.encode() in buf:
+            if mark.encode() in buf:
                 break
         else:
             if time.time() - last > 3.0:
@@ -66,7 +71,7 @@ def run(snippet: str, timeout: float = 60.0, raw: bool = False) -> str:
     if raw:
         return txt
     # everything before the marker
-    idx = txt.find(MARK)
+    idx = txt.find(mark)
     if idx >= 0:
         txt = txt[:idx]
     lines = txt.split("\n")
@@ -76,6 +81,8 @@ def run(snippet: str, timeout: float = 60.0, raw: bool = False) -> str:
         if not s:
             continue
         if s == cmd.strip():            # echoed command
+            continue
+        if "printf 'OC_%s_DONE'" in s:   # echoed marker emitter
             continue
         if s in ("stty -echo 2>/dev/null", "stty echo 2>/dev/null", "~ #", "#"):
             continue

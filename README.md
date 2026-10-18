@@ -133,23 +133,28 @@ git clone https://github.com/sojufx/unspy && cd unspy
 #    and the guides at                              https://www.webosbrew.org/rooting/
 #    Then install Homebrew Channel; it provides /var/lib/webosbrew/init.d.
 
-# 2. Get the hooks onto the TV
-scp -r scripts root@<your-tv>:/tmp/unspy/
+# 2. Point the helper tools at your TV and copy the hooks over
+#    (a rooted webOS TV gives you a *telnet* root shell - not SSH, and macOS no longer
+#     ships a telnet client - so the repo carries two stdlib-only helpers instead)
+export TV_IP=<your-tv-ip>
+python3 tools/tvpush.py -r scripts /tmp/unspy          # sha256-verified upload
+python3 tools/tvtelnet.py 'sh /tmp/unspy/scripts/install.sh'
 
-# 3. Run as root on the TV
-ssh root@<your-tv> 'sh /tmp/unspy/scripts/install.sh'
-
-# 4. Reboot and confirm
-ssh root@<your-tv> 'cat /tmp/inputhook-boot.log'
+# 3. Reboot, wait ~50s, then read what the boot hooks actually did
+python3 tools/tvtelnet.py 'reboot'                     # the shell dies with the TV - expected
+sleep 50
+python3 tools/tvtelnet.py 'cat /tmp/inputhook-boot.log'
 ```
+
+The installer is idempotent — running it again is a no-op — and `sh install.sh --revert` removes everything it installed.
 
 Then build and install the launcher:
 
 ```sh
 cd launcher
 npm install
-cp tv.env.example tv.env      # set TV_HOST
-npm run deploy                # build, package, install onto the TV
+cp tv.env.example tv.env      # set TV_IP (rooted) or TV_HOST (SSH)
+npm run deploy                # build, package, install onto the TV, launch it
 ```
 
 Read [docs/safety.md](docs/safety.md) before you start, and [docs/compatibility.md](docs/compatibility.md) to find out whether your TV is a candidate at all.
@@ -224,10 +229,16 @@ Nothing here writes to a read-only partition. Every mechanism has an undo, and m
 rm /var/lib/webosbrew/init.d/50-debloat-blocklist && umount /etc/hosts && reboot
 
 # undo everything this repo installed
+sh scripts/install.sh --revert          # or, by hand:
 rm -f /var/lib/webosbrew/init.d/{50-debloat-blocklist,60-debloat-hideapps,65-debloat-homescreen,70-debloat-novoice,80-debloat-nodiscovery,85-homebutton}
 rm -f /var/lib/webosbrew/{early-hooks,inputhook-supervisor,boot-home}
-umount -a -t tmpfs 2>/dev/null; reboot
+reboot
 ```
+
+> **Do not `umount -a`.** The bind-mounts and stopped units are all per-boot state, so a
+> reboot clears them. To drop the mounts *without* rebooting, unmount the specific app dirs
+> — never unmount tmpfs wholesale, because the TV's own `/tmp` and runtime mounts live
+> there. The loop that does it safely is in [docs/safety.md](docs/safety.md#rollback).
 
 The TV's own failsafe is untouched: Homebrew Channel's emergency telnet server and its "crash during startup" recovery still work exactly as before.
 

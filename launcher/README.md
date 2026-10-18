@@ -59,11 +59,13 @@ npm run build      # type-check, then build dist/ (chrome79, classic script)
 npm run package    # dist/ → build/works.partridge.webos-launcher_<version>_all.ipk
 ```
 
-To install on a rooted TV over SSH, copy `tv.env.example` to `tv.env` (git-ignored) and
-set `TV_HOST` to an ssh alias or `root@<tv-ip>`, then:
+To install on a TV, copy `tv.env.example` to `tv.env` (git-ignored) and set **`TV_IP`**
+(a rooted TV — this repo's own `tools/tvpush.py`/`tools/tvtelnet.py` do the transfer over
+the root telnet shell, because rooted webOS has no SSH) or **`TV_HOST`** (an ssh alias or
+`root@<tv-ip>`, for a TV with SSH such as Developer Mode). Then:
 
 ```sh
-npm run install:tv   # copy the ipk over SSH, install it, launch it
+npm run install:tv   # copy the ipk over, install it, launch it
 npm run deploy       # build + package + install:tv
 ```
 

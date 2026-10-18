@@ -92,8 +92,10 @@ past your own rootable firmware ceiling. See [compatibility.md](compatibility.md
 **Verify:**
 
 ```sh
-nslookup ad.lgappstv.com            # -> 0.0.0.0 / ::  (and the mount)
-cat /proc/mounts | grep '/etc/hosts'
+# how many names are blackholed right now (our section starts at the "webos-debloat" line)
+sed -n '/webos-debloat/,$p' /etc/hosts | grep -c '^127\.0\.0\.1'
+grep lgappstv /etc/hosts                  # -> 127.0.0.1 ad.lgappstv.com
+nslookup ad.lgappstv.com                  # -> 127.0.0.1 / ::
 ```
 
 ---
@@ -235,8 +237,12 @@ Everything above is reproducible from a root shell:
 # consent flags
 cat /var/luna/preferences/eula
 
-# what is blocked and whether the mount is live
-cat /proc/mounts | grep -e /etc/hosts -e debloat-empty
+# what is blocked, and whether our blocklist is the one mounted
+grep -q webos-debloat /etc/hosts && echo ACTIVE
+sed -n '/webos-debloat/,$p' /etc/hosts | grep -c '^127\.0\.0\.1'
+
+# which app dirs we have masked (tmpfs over a read-only dir)
+awk '$1=="tmpfs" && $2 ~ /palm\/applications/ {print $2}' /proc/mounts
 
 # what is still running that could capture or enumerate
 ps -ef | grep -E 'voiceinput|voiceconductor|homeconnect|apiadapter|avahi|ssdp|ssc'
