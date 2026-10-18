@@ -125,12 +125,15 @@ We are not going to settle that argument here, and this repo does not claim to. 
 **You need:** an LG webOS TV you own, a computer on the same network, and a willingness to read before you type. Rooting is the risky step; everything after it is reversible.
 
 ```sh
+# 0. Get the repo
+git clone https://github.com/sojufx/unspy && cd unspy
+
 # 1. Root the TV (not covered here - follow the community projects)
 #    Check your exact model and firmware first:  https://cani.rootmy.tv
 #    and the guides at                              https://www.webosbrew.org/rooting/
 #    Then install Homebrew Channel; it provides /var/lib/webosbrew/init.d.
 
-# 2. Get this repo onto the TV
+# 2. Get the hooks onto the TV
 scp -r scripts root@<your-tv>:/tmp/unspy/
 
 # 3. Run as root on the TV
