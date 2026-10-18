@@ -20,7 +20,7 @@ REMOTE="${1:-/media/developer/apps/usr/palm/applications/works.partridge.webos-l
 
 echo "Pushing assets to $REMOTE"
 # tvpush's own sha256 check parses the telnet echo unreliably and reports a false
-# MISMATCH, so its exit code is advisory here; the size check below is what we trust.
+# MISMATCH, so its exit code is advisory here; the size check below is the reliable one.
 "$TOOLS/tvpush.py" "$DIST/assets/app.js" "$REMOTE/assets/app.js" >/dev/null 2>&1 || true
 if [ -f "$DIST/assets/app.css" ]; then
 	"$TOOLS/tvpush.py" "$DIST/assets/app.css" "$REMOTE/assets/app.css" >/dev/null 2>&1 || true

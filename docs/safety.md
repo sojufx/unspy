@@ -47,11 +47,11 @@ one gotcha: on this TV a bind-mount of a directory that lives on tmpfs is report
 **`tmpfs` in the source field**, not the source path — so search the *mount point*:
 
 ```sh
-# every app dir we masked (a tmpfs mounted over a read-only one)
+# every app dir that got masked (a tmpfs mounted over a read-only one)
 awk '$1=="tmpfs" && $2 ~ /palm\/applications/ {print $2}' /proc/mounts
 
 # the blocklist, by its content rather than by how it is mounted
-# (our generated section starts at the line containing "webos-debloat")
+# (the generated section starts at the line containing "webos-debloat")
 sed -n '/webos-debloat/,$p' /etc/hosts | grep -c '^127\.0\.0\.1'   # -> 21 names blackholed
 ```
 
@@ -59,7 +59,7 @@ sed -n '/webos-debloat/,$p' /etc/hosts | grep -c '^127\.0\.0\.1'   # -> 21 names
 
 ## The `startup.sh` edit, exactly
 
-`startup.sh` belongs to **Homebrew Channel**, not to us. We added **one line** to it, and
+`startup.sh` belongs to **Homebrew Channel**, not to me. I added **one line** to it, and
 kept a pristine copy of the original on the TV before touching it:
 
 ```sh
@@ -149,7 +149,7 @@ Two consequences worth understanding before you need them:
 1. **If the TV boots to a black screen after these changes, it is almost certainly a
    mount or a stopped service, not a brick.** Get in over the emergency telnet, delete the
    file that caused it, reboot.
-2. **Our `early-hooks` line runs *before* the failsafe flag is set.** It only spawns two
+2. **My `early-hooks` line runs *before* the failsafe flag is set.** It only spawns two
    detached processes and exits, so it cannot hang the boot — but if you write your own
    version of it, do not put anything blocking in there.
 
@@ -192,7 +192,7 @@ python3 tools/tvtelnet.py 'cat /tmp/boot-home.log'                   # launcher 
 python3 tools/tvtelnet.py 'ps -ef | grep -E "voiceinput|avahi|ssdp"' # what is still running
 python3 tools/tvtelnet.py 'iptables -S | grep dport'                 # discovery rules
 python3 tools/tvtelnet.py 'sed -n "/webos-debloat/,\$p" /etc/hosts | grep -c "^127\.0\.0\.1"'   # names blackholed
-python3 tools/tvtelnet.py 'cat /tmp/debloat-hosts'                   # the blocklist we generated
+python3 tools/tvtelnet.py 'cat /tmp/debloat-hosts'                   # the blocklist I generated
 ```
 
 ---

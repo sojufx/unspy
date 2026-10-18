@@ -13,7 +13,7 @@
 > before you run anything.** If you are not comfortable recovering a bricked TV from a USB
 > stick, do not start.
 >
-> We do this to our own TV. You do it to yours, at your own risk.
+> I did this to my own TV. You do it to yours, at your own risk.
 
 # unspy
 
@@ -34,7 +34,7 @@ Same TV. Same remote. Same apps. Same living room.
 | [![Stock LG webOS 6 home screen: a "Free on LG Channels" promo rail with sponsored Killer Joe, 30 Days of Night and The Three Musketeers tiles](media/before-lg-home.jpg)](media/before-lg-home.jpg) | [![The unspy launcher: "Good evening" greeting, a large clock, and clean APPS, SOURCES and MORE rows of app tiles on a dark blue gradient](media/after-launcher.jpg)](media/after-launcher.jpg) |
 | A shop window. Sponsored tiles, "Free on LG Channels", a rail of whatever LG is being paid to show you. | Greeting, clock, and your apps. Nothing you didn't ask for. |
 
-The left photo is the TV as it shipped. The right photo is the same panel, with the stock home screen gone and the HOME button rewired to our launcher — captured after a cold boot, on the actual TV, on a Sunday evening.
+The left photo is the TV as it shipped. The right photo is the same panel, with the stock home screen gone and the HOME button rewired to my launcher — captured after a cold boot, on the actual TV, on a Sunday evening.
 
 ---
 
@@ -86,9 +86,9 @@ Three mechanisms, because no single one is enough:
 
 1. **It installs as an ordinary app.** `works.partridge.webos-launcher`, `systemApp: false`. Nothing is written to a system partition, and LG's own home screen still exists underneath.
 
-2. **The HOME button is remapped.** [LG Input Hook](https://github.com/Simon34545/lginputhook) (`org.webosbrew.inputhook`) intercepts key code `773` and launches our app instead of `com.webos.app.home`. One detail cost us an evening and is worth writing down: **on this TV the HOME press is carried by `micomservice`, not `lginput2`.** Hook only `lginput2` and the remap appears to work in the logs while HOME still opens LG's home screen.
+2. **The HOME button is remapped.** [LG Input Hook](https://github.com/Simon34545/lginputhook) (`org.webosbrew.inputhook`) intercepts key code `773` and launches my app instead of `com.webos.app.home`. One detail cost me an evening and is worth writing down: **on this TV the HOME press is carried by `micomservice`, not `lginput2`.** Hook only `lginput2` and the remap appears to work in the logs while HOME still opens LG's home screen.
 
-3. **Boot lands on the launcher.** `startup.sh` lives on the writable `/var/lib/webosbrew/`, so one guarded line near its top starts our supervisor a full **8 seconds earlier** than the standard `init.d` run-parts pass (≈34s vs ≈42s uptime). From there:
+3. **Boot lands on the launcher.** `startup.sh` lives on the writable `/var/lib/webosbrew/`, so one guarded line near its top starts my supervisor a full **8 seconds earlier** than the standard `init.d` run-parts pass (≈34s vs ≈42s uptime). From there:
    * `inputhook-supervisor` injects the hook and **retries** until it takes — early injection is load-dependent and does fail on some boots;
    * `boot-home` brings the launcher to the front and, until the hook is confirmed live, quietly replaces LG's home screen if it grabs the foreground. Then it stops, so the launcher's own "LG Home" tile keeps working normally;
    * `85-homebutton` in `init.d` is a safety net: if a Homebrew Channel update ever overwrites `startup.sh`, the hooks still come up.
@@ -104,7 +104,7 @@ Three mechanisms, because no single one is enough:
 [47s] foreground = works.partridge.webos-launcher
 ```
 
-**And the honest part:** this is not instant-on. LG's own UI is on screen first, and ours takes over a few seconds later, once the panel is usable. If LG ever ships a firmware that breaks the injection, you get the stock home screen back and nothing else changes.
+**And the honest part:** this is not instant-on. LG's own UI is on screen first, and mine takes over a few seconds later, once the panel is usable. If LG ever ships a firmware that breaks the injection, you get the stock home screen back and nothing else changes.
 
 📖 Full detail: **[docs/launcher.md](docs/launcher.md)**
 
@@ -114,9 +114,9 @@ Three mechanisms, because no single one is enough:
 
 In September 2026, Gamers Nexus and Level1Techs published *"216,000,000 Spy TVs"*, alleging that LG televisions were using Automatic Content Recognition to collect viewing data, location, IP address, nearby Wi-Fi network names and the names of devices on your LAN — with audio capture in standby. LG responded that its ACR is opt-in and based on audio fingerprinting, with no screenshots or recordings. The Texas Attorney General has sued several TV makers over ACR.
 
-We are not going to settle that argument here, and this repo does not claim to. What it does is simpler and more useful: **we sat down with one of these TVs, measured what it actually does, and cut every path we could — then wrote down exactly what we changed, including the parts we could not verify.**
+I am not going to settle that argument here, and this repo does not claim to. What it does is simpler and more useful: **I sat down with one of these TVs, measured what it actually does, and cut every path I could — then wrote down exactly what I changed, including the parts I could not verify.**
 
-[docs/privacy.md](docs/privacy.md) is the audit: what we looked at, what we blocked, what we measured, and what we are *not* claiming.
+[docs/privacy.md](docs/privacy.md) is the audit: what I looked at, what I blocked, what I measured, and what I am *not* claiming.
 
 ---
 
@@ -159,7 +159,7 @@ npm run deploy                # build, package, install onto the TV, launch it
 
 Read [docs/safety.md](docs/safety.md) before you start, and [docs/compatibility.md](docs/compatibility.md) to find out whether your TV is a candidate at all.
 
-> **Do not install a firmware update before you know your ceiling.** On our set, an update past a specific version permanently removes the root path. Numbers in [docs/compatibility.md](docs/compatibility.md).
+> **Do not install a firmware update before you know your ceiling.** On my set, an update past a specific version permanently removes the root path. Numbers in [docs/compatibility.md](docs/compatibility.md).
 
 ---
 
@@ -208,15 +208,15 @@ It was verified on exactly this hardware. Other 2021-era LG sets on the same `lm
 
 ## What this does *not* do
 
-We would rather you trust the parts that are true.
+I would rather you trust the parts that are true.
 
-* **It does not stop ACR inside LG's own code.** We switch ACR off at the setting, blackhole the endpoints it talks to, and decline the consent flags. We cannot prove that nothing is collected, and we do not claim to have.
+* **It does not stop ACR inside LG's own code.** I switch ACR off at the setting, blackhole the endpoints it talks to, and decline the consent flags. I cannot prove that nothing is collected, and I do not claim to have.
 * **It does not fix the TV's other network traffic.** Streaming apps still talk to their own servers — that is what streaming is.
 * **It breaks a few things on purpose.** No DLNA browsing from the TV, no AirPlay/Miracast discovery *to* the TV (`LGwebOSTV.local` stops answering), and no control from the LG ThinQ app. Each is documented and independently reversible.
 * **It is not a security boundary.** Hosts-file blackholing is a roadblock, not a wall. Anyone with root on the TV can undo it, and it does nothing about what the TV sends over a tunnel.
 * **IPv6 discovery is not firewalled on this set** — the kernel has no `ip6_tables`. Block it at your router if you care. The script says so out loud at boot.
-* **The launcher is a restyle of someone else's app**, not a from-scratch rewrite. Upstream is MIT and is credited in full. What we changed is the visual layer (`theme/tokens.ts`, `theme/global.css`, plus a new `components/Backdrop.tsx` and `lib/accent.ts`) and a few layout decisions in `Home.tsx` / `Row.tsx`. The Luna plumbing, app catalogue and packaging are upstream's work, and they are good work.
-* **Boot is not instant.** A few seconds of LG's UI before ours takes over.
+* **The launcher is a restyle of someone else's app**, not a from-scratch rewrite. Upstream is MIT and is credited in full. What I changed is the visual layer (`theme/tokens.ts`, `theme/global.css`, plus a new `components/Backdrop.tsx` and `lib/accent.ts`) and a few layout decisions in `Home.tsx` / `Row.tsx`. The Luna plumbing, app catalogue and packaging are upstream's work, and they are good work.
+* **Boot is not instant.** A few seconds of LG's UI before the launcher takes over.
 
 ---
 
@@ -270,7 +270,7 @@ unspy/
 │   ├── tv-inspector.mjs        evaluate JS in the running launcher
 │   └── tv-keys.mjs             send remote key codes
 ├── docs/
-│   ├── privacy.md              the audit, and what we can't claim
+│   ├── privacy.md              the audit, and what I can't claim
 │   ├── launcher.md             the home screen, in depth
 │   ├── compatibility.md        which TVs, which firmware, which ceilings
 │   └── safety.md               what it touches and how to undo it
@@ -312,4 +312,4 @@ Launcher pull requests are welcome; keep it Chromium 79-safe and keep the design
 
 This project's own code: **MIT** — see [LICENSE](LICENSE). The launcher fork keeps its own MIT licence and third-party notices in `launcher/`. Third-party components keep theirs; see [NOTICE.md](NOTICE.md).
 
-> **Disclaimer.** This is an independent, unofficial project. It is not affiliated with, endorsed by or sponsored by LG Electronics or any app vendor. Rooting your TV voids its warranty and carries real risk — you are modifying a device you paid for, and you can break it. Everything here was written against one TV that we own and were willing to brick. Read it before you run it.
+> **Disclaimer.** This is an independent, unofficial project. It is not affiliated with, endorsed by or sponsored by LG Electronics or any app vendor. Rooting your TV voids its warranty and carries real risk — you are modifying a device you paid for, and you can break it. Everything here was written against one TV that I own and was willing to brick. Read it before you run it.

@@ -4,7 +4,7 @@
 #
 # Purpose: neutralise LG ad / overlay / shopping / demo / dev-sample apps that
 # cannot be deleted, because /usr and /mnt/otncabi are read-only squashfs
-# overlays. We bind-mount an empty directory over each app folder, so the app
+# overlays. This hook bind-mounts an empty directory over each app folder, so the app
 # manager finds no appinfo.json and the app can neither be indexed nor launched.
 #
 # REVERT:

@@ -24,7 +24,7 @@ def run(snippet: str, timeout: float = 60.0, raw: bool = False) -> str:
     except Exception:
         pass
 
-    # try to stop the pty from echoing our input back
+    # try to stop the pty from echoing the input back
     tn.write(b"stty -echo 2>/dev/null\n")
     time.sleep(0.35)
     try:
@@ -34,9 +34,9 @@ def run(snippet: str, timeout: float = 60.0, raw: bool = False) -> str:
 
     cmd = snippet.replace("\n", "; ")
     # The completion marker is randomised and emitted in two halves, so the
-    # command text we send can never contain it. Otherwise, when the pty does
+    # command text sent can never contain it. Otherwise, when the pty does
     # echo (stty -echo is best-effort), the echo of `echo MARK` matches
-    # instantly and we return the previous command's output instead.
+    # instantly and the previous command's output is returned instead.
     tok = "%06x" % random.getrandbits(24)
     mark = "OC_%s_DONE" % tok
     tn.write(("%s; printf 'OC_%%s_DONE' %s\n" % (cmd, tok)).encode())

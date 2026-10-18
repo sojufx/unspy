@@ -7,7 +7,7 @@
 # Why: the Sept 2026 Gamers Nexus / Level1Techs report alleged LG TVs could
 # capture audio after voice activation and in standby, then upload transcripts.
 # The consent flags on this set were already declined (/var/luna/preferences/eula:
-# voiceAllowed:false, voice2Allowed:false, acrAllowed:false), but we also stop the
+# voiceAllowed:false, voice2Allowed:false, acrAllowed:false), but this hook also stops the
 # capture daemons so there is no audio pipeline at all.
 #
 # What it does:

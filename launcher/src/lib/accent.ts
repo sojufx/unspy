@@ -1,9 +1,9 @@
 // Accent colours: the colour the room takes on for a given app.
 //
-// Apple TV's backdrop is derived from the artwork you are looking at; we do the same by
+// Apple TV's backdrop is derived from the artwork you are looking at; this does the same by
 // drawing the icon into a tiny canvas and averaging it. Icons fetched through the
 // Homebrew Channel arrive as data: URIs, which do not taint the canvas. Icons loaded
-// from file:// DO taint it, so getImageData throws and we fall back to the brand table.
+// from file:// DO taint it, so getImageData throws and this falls back to the brand table.
 
 /** Sensible colour per app, used when the icon cannot be sampled. */
 const BRAND: Record<string, string> = {

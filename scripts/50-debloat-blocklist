@@ -3,7 +3,7 @@
 # Installed to /var/lib/webosbrew/init.d/ - Homebrew Channel runs this on every boot.
 #
 # Purpose: blackhole LG's ad / ACR / telemetry / firmware-update endpoints.
-# Mechanism: /etc is a read-only squashfs overlay, so we generate a hosts file in
+# Mechanism: /etc is a read-only squashfs overlay, so this hook generates a hosts file in
 # /tmp and bind-mount it over /etc/hosts (the same trick HB Channel's startup uses).
 #
 # REVERT:  rm /var/lib/webosbrew/init.d/50-debloat-blocklist; umount /etc/hosts; reboot
@@ -56,7 +56,7 @@ H=/tmp/debloat-hosts
   done
 } > "$H"
 
-# Bind our generated hosts over the real one. Safe to stack on top of a bind
+# Bind the generated hosts over the real one. Safe to stack on top of a bind
 # mount created by HB Channel's own startup script.
 mount --bind "$H" /etc/hosts 2>/dev/null || true
 

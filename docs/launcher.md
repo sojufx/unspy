@@ -5,10 +5,10 @@ front of you at every boot.
 
 [![The unspy launcher: "Good evening" greeting, clock, and APPS / SOURCES / MORE rows](../media/launcher-cdp.png)](../media/launcher-cdp.png)
 
-> Our build is a **restyle** of [`partridgeworks/webos-launcher`](https://github.com/partridgeworks/webos-launcher)
+> My build is a **restyle** of [`partridgeworks/webos-launcher`](https://github.com/partridgeworks/webos-launcher)
 > (MIT), installed as `works.partridge.webos-launcher` **1.1.0**. Upstream wrote the
 > plumbing — the Luna bridge, the app catalogue, the packaging, the remote-key handling.
-> We rebuilt the visual layer and invented the home-screen integration. Both are credited
+> I rebuilt the visual layer and invented the home-screen integration. Both are credited
 > in [NOTICE.md](../NOTICE.md).
 
 ---
@@ -165,7 +165,7 @@ tail -f /tmp/lginput-hook-lginput2.log
 ```
 
 Whichever log shows `code=773 → Key 773 is launch → luna-send …/launch` when you press HOME
-is your carrier. Ours is `micomservice`. `inputhook-supervisor` hooks every known candidate
+is your carrier. Mine is `micomservice`. `inputhook-supervisor` hooks every known candidate
 (`micomservice lginput2 tvservice RELEASE testapp`) for exactly this reason.
 
 ### 3. Boot lands on the launcher
@@ -175,7 +175,7 @@ not run until **≈42s** uptime. The input daemons are up at **≈13s** and the 
 from **≈30s**. Forty-two is too late: the TV is already showing LG's home screen.
 
 **The fix.** `startup.sh` sits on the writable `/var/lib/webosbrew/` and is executed by
-`devmode.service` at **≈21s**. So one guarded line near its top starts our hooks a full
+`devmode.service` at **≈21s**. So one guarded line near its top starts my hooks a full
 8 seconds earlier, and everything in it is backgrounded so the boot is not delayed:
 
 ```bash
@@ -261,7 +261,7 @@ helper's own sha256 readback is unreliable and reports a false mismatch.
 
 ## Known limits
 
-* **Not instant-on.** LG's UI is on screen first; ours takes over once the panel is usable
+* **Not instant-on.** LG's UI is on screen first; the launcher takes over once the panel is usable
   — a few seconds. This is a redirect, not a bootloader.
 * **The hook is volatile.** It lives in the daemons, so every reboot loses it and the
   supervisor has to re-inject. If injection is ever permanently broken by a firmware

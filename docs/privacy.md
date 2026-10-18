@@ -1,6 +1,6 @@
 # The privacy audit
 
-What we changed, why, how to check it yourself — and what we are **not** claiming.
+What I changed, why, how to check it yourself — and what I am **not** claiming.
 
 ---
 
@@ -14,14 +14,14 @@ responded on 12 September 2026 that its ACR is opt-in and uses audio fingerprint
 no screenshots or recordings. The Texas Attorney General has since sued several TV
 manufacturers over ACR practices.
 
-We have no inside knowledge and no packet capture of LG's backend. What we have is one TV,
+I have no inside knowledge and no packet capture of LG's backend. What I have is one TV,
 a root shell, and the willingness to look. This document is the result of that look.
 
 ---
 
 ## What the TV's own consent state said
 
-Before changing anything, we read the consent flags LG keeps on the device:
+Before changing anything, I read the consent flags LG keeps on the device:
 
 ```sh
 cat /var/luna/preferences/eula
@@ -34,8 +34,8 @@ acrAllowed:false
 ```
 
 Already declined — this TV had never consented to voice or ACR. That is reassuring up to a
-point, and it is also the reason some of what follows is belt-and-braces: **we are not
-auditing a consent flag, we are removing the machinery behind it.**
+point, and it is also the reason some of what follows is belt-and-braces: **I am not
+auditing a consent flag, I am removing the machinery behind it.**
 
 ---
 
@@ -92,7 +92,7 @@ past your own rootable firmware ceiling. See [compatibility.md](compatibility.md
 **Verify:**
 
 ```sh
-# how many names are blackholed right now (our section starts at the "webos-debloat" line)
+# how many names are blackholed right now (the generated section starts at the "webos-debloat" line)
 sed -n '/webos-debloat/,$p' /etc/hosts | grep -c '^127\.0\.0\.1'
 grep lgappstv /etc/hosts                  # -> 127.0.0.1 ad.lgappstv.com
 nslookup ad.lgappstv.com                  # -> 127.0.0.1 / ::
@@ -150,7 +150,7 @@ amazon.alexa.view            amazon.alexapr             com.webos.app.beanbrowse
 com.webos.app.enactbrowser   com.webos.app.voiceweb
 ```
 
-LG's home registry shrank from **84 to 74 entries** as a result. We deliberately did *not*
+LG's home registry shrank from **84 to 74 entries** as a result. I deliberately did *not*
 touch `com.webos.app.home` itself (hiding it bricks the TV), ui30, the HDMI input apps,
 Live TV or Settings.
 
@@ -158,9 +158,9 @@ This is what it looked like before masking, straight off the TV's own DevTools e
 
 [![LG's stock home screen captured from the TV: a "Free on LG Channels" promo rail with three sponsored film tiles](../media/lg-home-cdp.png)](../media/lg-home-cdp.png)
 
-Three sponsored films we did not ask for, under a heading that says "Free".
+Three sponsored films I did not ask for, under a heading that says "Free".
 
-Then we went further and stopped using LG's home screen at all — see
+Then I went further and stopped using LG's home screen at all — see
 [launcher.md](launcher.md).
 
 ---
@@ -208,25 +208,25 @@ at your router if it matters to you.
 
 ---
 
-## What we could not verify — and are not claiming
+## What I could not verify — and am not claiming
 
 Being precise about this is the whole point of publishing.
 
-* **We did not read LG's binaries.** We did not decompile `com.webos.app.acr` or the
-  telemetry clients. We know which endpoints the TV resolves and reaches, not what it puts
+* **I did not read LG's binaries.** I did not decompile `com.webos.app.acr` or the
+  telemetry clients. I know which endpoints the TV resolves and reaches, not what it puts
   in the payload.
 * **DNS blackholing is a roadblock, not a wall.** The TV has the IP addresses of LG's
   servers compiled in; a hosts-file entry stops name resolution, not a connection to a
   literal IP.
-* **No packet capture of ACR itself.** We did not set up a mirrored port or a TLS
-  interception proxy. We cannot tell you what data would have been sent — only that the
+* **No packet capture of ACR itself.** I did not set up a mirrored port or a TLS
+  interception proxy. I cannot tell you what data would have been sent — only that the
   destinations no longer resolve.
-* **Standby audio capture was not independently tested.** We have no way to be confident
-  one way or the other about a microphone in standby on this panel, so we removed the
+* **Standby audio capture was not independently tested.** I have no way to be confident
+  one way or the other about a microphone in standby on this panel, so I removed the
   capture daemons rather than arguing the point.
-* **ACR could exist in more than one place.** We disabled the setting, blocked the known
+* **ACR could exist in more than one place.** I disabled the setting, blocked the known
   endpoints and removed the promo surface. That is three independent layers, not a proof.
-* **We did not audit the streaming apps**, whose own tracking is entirely outside LG's
+* **I did not audit the streaming apps**, whose own tracking is entirely outside LG's
   control — and is the reason plenty of people debloat a TV and still see ads.
 
 ## Checking it yourself
@@ -237,11 +237,11 @@ Everything above is reproducible from a root shell:
 # consent flags
 cat /var/luna/preferences/eula
 
-# what is blocked, and whether our blocklist is the one mounted
+# what is blocked, and whether my blocklist is the one mounted
 grep -q webos-debloat /etc/hosts && echo ACTIVE
 sed -n '/webos-debloat/,$p' /etc/hosts | grep -c '^127\.0\.0\.1'
 
-# which app dirs we have masked (tmpfs over a read-only dir)
+# which app dirs are masked (tmpfs over a read-only dir)
 awk '$1=="tmpfs" && $2 ~ /palm\/applications/ {print $2}' /proc/mounts
 
 # what is still running that could capture or enumerate
@@ -250,8 +250,8 @@ ps -ef | grep -E 'voiceinput|voiceconductor|homeconnect|apiadapter|avahi|ssdp|ss
 # what the TV is listening on / connected to
 netstat -tunap 2>/dev/null | head -40
 
-# our own boot log, with uptime timestamps
+# the boot log this repo writes, with uptime timestamps
 cat /tmp/inputhook-boot.log /tmp/boot-home.log
 ```
 
-If you find something we missed, that is the most useful issue you can open.
+If you find something I missed, that is the most useful issue you can open.

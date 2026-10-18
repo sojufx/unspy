@@ -35,7 +35,7 @@ def session():
         tn.read_very_eager()
     except Exception:
         pass
-    # ask the pty to stop echoing our input; if it refuses, run() filters the
+    # ask the pty to stop echoing the input; if it refuses, run() filters the
     # echo out, but a quiet session makes the output readable
     tn.write(b"stty -echo 2>/dev/null\n")
     time.sleep(0.35)
@@ -51,7 +51,7 @@ def run(tn, cmd, timeout=90.0):
 
     The completion sentinel is randomised AND emitted with its two halves
     written separately, so the command *text* never contains the marker. That
-    matters: the TV's shell echoes our input back, so a literal `echo MARK`
+    matters: the TV's shell echoes the input back, so a literal `echo MARK`
     would match the echo instantly and return the previous command's output.
     """
     tok = "%06x" % random.getrandbits(24)

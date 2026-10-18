@@ -70,7 +70,7 @@ patched on your set, it is worth checking whether `faultmanager` is still open.
 
 ---
 
-## Our TV, exactly
+## My TV, exactly
 
 Everything in this repo was built and verified on:
 
@@ -94,7 +94,7 @@ Its full exploit list, straight from the dataset:
 | **`dejavuln`** | **03.40.82** | **03.41.00** |
 | `faultmanager` | 03.51.17 | 03.52.60 |
 
-**This corrected our own assumption, so it is worth being blunt about it.** We had assumed
+**This corrected my own assumption, so it is worth being blunt about it.** I had assumed
 03.36.30 was the newest rootable firmware on this panel. It is not: `dejavuln` keeps
 working up to **03.40.82**, and `faultmanager` up to **03.51.17**. The practical advice for
 anyone with this OTA ID:
@@ -118,7 +118,7 @@ Check [cani.rootmy.tv](https://cani.rootmy.tv) with your OTA ID and firmware. St
 Yes, if you are rooted through Homebrew Channel — this repo relies on
 `/var/lib/webosbrew/init.d` (a `run-parts` pass on every boot) and on `startup.sh` living
 on the writable `/var/lib/webosbrew/`, right next to it. Both come from Homebrew Channel
-and exist on every rooted webOS TV we are aware of.
+and exist on every rooted webOS TV I am aware of.
 
 **3. Will the launcher render?**
 The launcher targets **webOS 6 / Chromium 79**. That is the renderer it was written
@@ -134,7 +134,7 @@ against, and it uses the restricted syntax that implies (no optional chaining, n
 * **webOS 4 and older** — not a target.
 
 **4. Which daemon carries your HOME button?**
-This is the one that cost us the most time. On our set the HOME press is delivered by
+This is the one that cost me the most time. On my set the HOME press is delivered by
 **`micomservice`**, not `lginput2`. Hook the wrong one and everything *looks* correct —
 the hook loads, the log says it remapped the key — while HOME still opens LG's home
 screen. `inputhook-supervisor` in this repo hooks every known candidate for that reason.

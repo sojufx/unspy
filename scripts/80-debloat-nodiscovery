@@ -20,7 +20,7 @@
 #       com.webos.service.apiadapter    - companion-app API surface
 #
 #  3. firewall: `iconnectivity` and `upnpd` are supervised by ls-hubd and respawn
-#     immediately when killed, so we drop the discovery protocols at the packet
+#     immediately when killed, so this hook drops the discovery protocols at the packet
 #     level instead:
 #       UDP 1900 (SSDP/UPnP)  and  UDP 5353 (mDNS)  - both directions, v4 and v6
 #
