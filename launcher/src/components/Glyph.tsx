@@ -1,10 +1,10 @@
-// Inline SVG line icons used by the Misc row and the settings badge.
+// Inline SVG line icons used by the misc tiles, the chips and the settings badge.
 
 export type GlyphName = 'house' | 'gear';
 
-export function Glyph ({name}: {name: GlyphName}) {
+export function Glyph ({name, className = 'tile__glyph'}: {name: GlyphName; className?: string}) {
 	return (
-		<svg class="tile__glyph" viewBox="0 0 24 24" aria-hidden="true">
+		<svg class={className} viewBox="0 0 24 24" aria-hidden="true">
 			{name === 'house'
 				? <path d="M3 11.5 12 4l9 7.5M5.5 9.8V20h13V9.8M10 20v-6h4v6" />
 				: <>

@@ -7,9 +7,10 @@ import type {TileModel} from '../components/Tile';
 const INPUT_ICON_DIR = 'icons/inputs/';
 
 /** `accent` is the sampled brand colour from lib/accent; it only lights the backdrop,
- *  the tile itself still draws its icon. */
-export function appTile (app: AppEntry, accent?: string): TileModel {
-	return {key: app.id, label: app.title, imageUrl: app.iconUrl, color: accent || app.color};
+ *  the tile itself still draws its icon. `plate` is the icon's own background colour,
+ *  used to bleed a square icon into a landscape card. */
+export function appTile (app: AppEntry, accent?: string, plate?: string): TileModel {
+	return {key: app.id, label: app.title, imageUrl: app.iconUrl, color: accent || app.color, plate};
 }
 
 export function inputTile (input: InputSource): TileModel {

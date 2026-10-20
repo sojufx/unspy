@@ -85,6 +85,54 @@ export function accentFor (id: string, iconUrl?: string, fallback?: string): Pro
 	return sample(iconUrl).then((hex) => remember(id, hex || BRAND[id] || fallback || NEUTRAL_ACCENT));
 }
 
+const plateCache: Record<string, string> = {};
+
+/** The icon's *own* background colour, sampled from its four corners.
+ *
+ *  LG app icons are opaque squares, so drawing one centred on a neutral card looks like
+ *  a picture inside a picture. Painting the card with the icon's own background makes
+ *  the square disappear and the artwork read as a full-bleed tile, which is what the
+ *  stock home does. Returns undefined when the icon is transparent at the edges (most
+ *  first-party LG apps); those cards keep the neutral plate. */
+export function plateFor (id: string, iconUrl?: string): Promise<string | undefined> {
+	if (id in plateCache) return Promise.resolve(plateCache[id] || undefined);
+	if (!iconUrl) return Promise.resolve(undefined);
+	return new Promise((resolve) => {
+		const img = new Image();
+		img.onload = () => {
+			try {
+				const size = 24;
+				const canvas = document.createElement('canvas');
+				canvas.width = size;
+				canvas.height = size;
+				const ctx = canvas.getContext('2d');
+				if (!ctx) { resolve(undefined); return; }
+				ctx.drawImage(img, 0, 0, size, size);
+				const data = ctx.getImageData(0, 0, size, size).data;
+				const corners = [[1, 1], [size - 2, 1], [1, size - 2], [size - 2, size - 2]];
+				let r = 0, g = 0, b = 0, n = 0;
+				for (const [cx, cy] of corners) {
+					for (let y = cy - 1; y <= cy + 1; y++) {
+						for (let x = cx - 1; x <= cx + 1; x++) {
+							const i = (y * size + x) * 4;
+							if (data[i + 3] < 200) continue;
+							r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+						}
+					}
+				}
+				if (n < 12) { plateCache[id] = ''; resolve(undefined); return; }   // transparent edges
+				const hex = rgbToHex(r / n, g / n, b / n);
+				plateCache[id] = hex;
+				resolve(hex);
+			} catch (e) {
+				resolve(undefined);                                             // tainted canvas
+			}
+		};
+		img.onerror = () => resolve(undefined);
+		img.src = iconUrl;
+	});
+}
+
 function remember (id: string, hex: string): string {
 	cache[id] = hex;
 	return hex;

@@ -3,7 +3,7 @@
 The home screen that replaces LG's. How it looks, how it is built, and how it ends up in
 front of you at every boot.
 
-[![The unspy launcher: "Good evening" greeting, clock, and APPS / SOURCES / MORE rows](../media/launcher-cdp.png)](../media/launcher-cdp.png)
+[![The unspy launcher: a greeting top-left, a clock top-right, five columns of app cards with labels and an "Inputs & controls" strip](../media/launcher-cdp.png)](../media/launcher-cdp.png)
 
 > My build is a **restyle** of [`partridgeworks/webos-launcher`](https://github.com/partridgeworks/webos-launcher)
 > (MIT), installed as `works.partridge.webos-launcher` **1.1.0**. Upstream wrote the
@@ -15,65 +15,74 @@ front of you at every boot.
 
 ## The look
 
-The brief was "Apple TV, but for webOS 6", and the engine is a 2019 Chromium with no
-flexbox `gap`, so almost everything is absolute positioning against layout tokens.
+The brief is LG's own 2024 home screen, not Apple TV: landscape cards with labels
+underneath, a clock in the corner, a strip of inputs along the bottom. The engine is a 2019
+Chromium with no flexbox `gap`, no `inset` and no `aspect-ratio`, so the grid is absolute
+positioning against layout tokens, and the focus ring is a pseudo-element (Chrome 79 cannot
+round an `outline`).
 
-**Ambient lighting from the icon you are on.** This is the signature of the design. When
-you move along a row, the backdrop takes on the dominant colour of the selected app's
-icon — Netflix red, Disney+ blue, iPlayer pink. It is not a decorative gradient: it is
-sampled from the actual pixels.
+**Cards carry their own colour.** A sideloaded web app only ever gets a square icon, so a
+card cannot show the wide brand art LG's own home screen uses. The next best thing is to
+stop fighting the square: each icon is drawn into a 24×24 canvas, its four corner pixels are
+sampled, and if they agree the card is painted that colour, edge to edge. Apple TV becomes a
+black card with a black icon, Netflix a white card, Channel 4 a green one — the square is
+invisible because the card *is* the square's background. Icons with transparent or
+inconsistent corners fall back to the neutral plate, and the icons with a diagonal or a glow
+(Prime Video, Disney+) keep their own rounded artwork on the plate instead. The sampling is
+done once at launch and cached per icon URL.
 
-[![The home screen with the APPS row scrolled and BBC iPlayer focused: the backdrop has taken on iPlayer's pink, and the focused tile carries a white border](../media/launcher-scroll.png)](../media/launcher-scroll.png)
+[![The home screen with the second row scrolled into view and ITVX focused: the focus ring sits outside the card and the cards keep their brand colours](../media/launcher-scroll.png)](../media/launcher-scroll.png)
 
-<sub>The same screen one press to the right: iPlayer focused, the room washed pink.</sub>
+<sub>The same screen one press down and two to the right: ITVX focused. Nothing scales, lifts or glows; the ring is the whole focus state.</sub>
 
 ```
-components/Backdrop.tsx   two stacked layers, cross-faded, each two radial gradients:
-                          a bright core above the shelf + a wide ambient behind it
-lib/accent.ts             draw the icon into a 20x20 canvas, average the pixels that
-                          are not transparent, near-black or blown-out white, then
-                          stretch the max channel to 236 so the colour can actually
-                          light a room; fall back to a brand table per app ID
+components/AppGrid.tsx    five-column track, scrolled a whole row at a time
+components/Tile.tsx       card (home) and square (settings) variants; ring via ::after
+components/InputStrip.tsx "Inputs & controls": chips for inputs, Settings, LG Home
+lib/accent.ts             accentFor() for monogram colour; plateFor() samples the icon's
+                          four corners into a card background, cached by URL
 ```
 
-Two details worth stealing:
-
-* **A single wide gradient reads as coloured fog.** Light needs a core, so the wash is two
-  gradients — a tight, brighter ellipse near the shelf and a faint, wide one behind it — plus
-  a bottom scrim that keeps the lowest row legible over any colour.
-* **Chrome 79 cannot animate a gradient.** The backdrop is *two identical layers*; when the
-  colour changes, the hidden one is repainted and the pair cross-fades via `opacity`. That
-  is the whole trick.
-
-**Focus is elevation first.** The selected tile grows to `1.14`, lifts on its shadow, and
-takes a 1px white border (`tileBorderFocus`); the rest of the row drops to `88%` opacity.
-It reads as the tile coming forward rather than as a cursor. The pointer is hidden on open
+**Focus is a ring, not a lift.** The selected card gets an offset white outline drawn 8px
+outside its edge; it does not grow, lift or take a shadow, and the rest of the grid does not
+dim. On a wall-sized panel that reads as a cursor you can find from the sofa, without the
+grid moving under your thumb. The pointer is hidden on open
 (`webOSSystem.setCursorHidden(true)`) — shake the Magic Remote to get it back.
+
+**One Chromium 79 trap worth writing down.** The first frame painted after a *reload* can be
+rasterised into a surface the TV's compositor then overwrites, and the text drawn in that
+frame (here: the greeting, the clock and the date) keeps drawing garbage glyphs until
+something forces it to repaint. Fresh launches are usually fine; a hot reload is not. The
+launcher adds a `.settled` class 1.5 seconds after launch, which nudges the tracking of
+those three runs by a fraction of a pixel and repaints them. The practical rule that came out
+of it: keep `letter-spacing` at `normal` or whole pixels on large text, and never trust a
+single TV screenshot.
 
 **Everything is a token.** Colours, type scale, layout and motion live in one file:
 
 ```ts
 // launcher/src/theme/tokens.ts
-export const COLOR  = { bg: '#05050A', textPrimary: '#F4F4F6', tileBorderFocus: 'rgba(255,255,255,0.88)', ... };
-export const FONT   = { greeting: 30, clockTime: 52, rowLabel: 16, tileLabel: 18, ... };
-export const LAYOUT = { screenWidth: 1920, edgePadding: 110, rowsTop: 194, tileSize: 168,
-                        tileGap: 28, tileRadius: 38, rowGap: 26, ... };
-export const MOTION = { focusMs: 180, scrollMs: 320, focusScale: 1.14, unfocusedRowOpacity: 0.88 };
+export const COLOR  = { bg: '#0B0B16', textPrimary: '#FFFFFF', ring: 'rgba(255,255,255,0.96)', ... };
+export const FONT   = { greeting: 26, clockTime: 58, cardLabel: 24, tileLabel: 18, ... };
+export const LAYOUT = { screenWidth: 1920, edgePadding: 110, gridTop: 200, cardWidth: 308,
+                        cardHeight: 190, cardGapX: 40, stripBottom: 165, chipHeight: 92, ... };
+export const MOTION = { focusMs: 160, scrollMs: 280, focusScale: 1.14 };
 ```
 
 `applyTokens()` publishes them to `:root` as CSS custom properties, so the stylesheet and
-the components read the same numbers. Change `tileRadius` from `38` to `8`, rebuild, and
-every tile follows.
+the components read the same numbers. Change `cardRadius` from `20` to `4`, rebuild, and
+every card follows.
 
 ---
 
-## The rows
+## What is on screen
 
-| Row | Contents | Source |
+| Zone | Contents | Source |
 |---|---|---|
-| **APPS** | your apps, in your order | bundled catalogue ∩ what the TV says is installed |
-| **SOURCES** | Live TV and HDMI inputs | `com.webos.service.eim/getAllInputStatus` — real inputs, with the names you set in the TV's Input settings |
-| **MORE** | LG Home, Settings | LG's own home screen is still reachable from here |
+| top-left | the greeting — *Good afternoon* | the local clock |
+| top-right | the time, the date under it | the local clock |
+| grid | your apps, in your order, five per row, two rows visible | bundled catalogue ∩ what the TV says is installed |
+| strip | Live TV, the HDMI inputs, Settings, LG Home | `com.webos.service.eim/getAllInputStatus` — real inputs, with the names you set in the TV's Input settings |
 
 **Why a catalogue rather than the live app list?** On webOS 6, sideloaded web apps are
 *denied* `listLaunchPoints`, `listApps`, `getAppInfo` and `getForegroundAppInfo` — a web app
@@ -98,8 +107,8 @@ cp src/config/catalog.local.example.ts src/config/catalog.local.ts   # git-ignor
 
 | Where | Key | Does |
 |---|---|---|
-| Home | ↑ ↓ | move between rows |
-| Home | ← → | move along a row |
+| Home | ↑ ↓ | move between rows; down from the last row enters the strip, up returns to the grid |
+| Home | ← → | move along a row, or along the strip |
 | Home | OK | open the app or input |
 | Settings | OK | add or remove an app/source |
 | Settings | Hold OK / **Re-order** | enter or leave re-order mode |
@@ -109,7 +118,7 @@ cp src/config/catalog.local.example.ts src/config/catalog.local.ts   # git-ignor
 [![The launcher's Settings screen: APPS / SOURCES / OPTIONS tabs, a grid of tiles with check badges, and a "Re-order apps" button](../media/launcher-settings.png)](../media/launcher-settings.png)
 
 Adding and removing is a grid of every app it knows about, with the ones currently on your
-shelf badged. Re-ordering is a mode, so you cannot do it by accident.
+home screen badged. Re-ordering is a mode, so you cannot do it by accident.
 
 ---
 

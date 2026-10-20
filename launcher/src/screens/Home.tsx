@@ -1,86 +1,112 @@
 import {useCallback, useEffect, useState} from 'preact/hooks';
-import {Backdrop} from '../components/Backdrop';
-import {Header} from '../components/Header';
+import {AppGrid} from '../components/AppGrid';
+import {InputStrip} from '../components/InputStrip';
 import {Clock} from '../components/Clock';
-import {Row} from '../components/Row';
+import {Header} from '../components/Header';
 import type {TileModel} from '../components/Tile';
 import {useKeys, clamp, type NavKey} from '../hooks/useKeys';
 import {useClock} from '../hooks/useClock';
 import {useTimeFormat} from '../hooks/useTimeFormat';
-import {NEUTRAL_ACCENT} from '../lib/accent';
-
-export interface HomeRow {
-	id: string;
-	label: string;
-	items: TileModel[];
-	emptyText?: string;
-}
 
 interface Props {
-	rows: HomeRow[];
+	apps: TileModel[];
+	controls: TileModel[];
 	active: boolean;
-	onActivate: (rowId: string, item: TileModel) => void;
+	onActivateApp: (item: TileModel) => void;
+	onActivateControl: (item: TileModel) => void;
 }
 
-/** The home screen: room lighting, greeting, clock and the navigable shelves.
- *  Up/Down move between rows (each row remembers its column), Left/Right move along a row. */
-export function Home ({rows, active, onActivate}: Props) {
+const COLUMNS = 5;
+
+type Zone = 'grid' | 'strip';
+
+/** The home screen: five cards across, the clock in the corner, and the input strip
+ *  along the bottom. Up/Down walk the grid (which scrolls by row), Down from the last
+ *  row drops into the strip, Left/Right move within whichever zone has focus. */
+export function Home ({apps, controls, active, onActivateApp, onActivateControl}: Props) {
 	const now = useClock();
 	const timeFormat = useTimeFormat();
-	const [rowIndex, setRowIndex] = useState(0);
-	const [columns, setColumns] = useState<Record<string, number>>({});
-	const [accent, setAccent] = useState(NEUTRAL_ACCENT);
+	const [zone, setZone] = useState<Zone>('grid');
+	const [row, setRow] = useState(0);
+	const [col, setCol] = useState(0);
+	const [stripIndex, setStripIndex] = useState(0);
 
-	const columnOf = (row: HomeRow) => clamp(columns[row.id] || 0, 0, Math.max(0, row.items.length - 1));
-	const setColumn = (rowId: string, col: number) => setColumns((c) => ({...c, [rowId]: col}));
+	const rows = Math.max(1, Math.ceil(apps.length / COLUMNS));
+	const itemsInRow = (r: number) => {
+		const remaining = apps.length - r * COLUMNS;
+		return Math.max(1, Math.min(COLUMNS, remaining));
+	};
 
-	const focusedRow = rows[rowIndex];
-	const focusedItem = focusedRow && focusedRow.items[columnOf(focusedRow)];
-	const focusedAccent = focusedItem && focusedItem.color;
-
-	// The room keeps the last colour it was given: moving to a row of greyscale glyphs
-	// (sources, settings) leaves the lighting on the app you just came from.
+	// Keep the cursor inside the grid when the app list changes underneath it.
 	useEffect(() => {
-		if (focusedAccent) setAccent(focusedAccent);
-	}, [focusedAccent]);
+		setRow((r) => clamp(r, 0, rows - 1));
+		setCol((c) => clamp(c, 0, itemsInRow(clamp(row, 0, rows - 1)) - 1));
+	}, [apps.length, rows, row]);
+
+	useEffect(() => {
+		setStripIndex((i) => clamp(i, 0, Math.max(0, controls.length - 1)));
+	}, [controls.length]);
 
 	const handleKey = useCallback((key: NavKey): boolean => {
-		const row = rows[rowIndex];
-		if (!row) return false;
 		switch (key) {
-			case 'up': setRowIndex((r) => clamp(r - 1, 0, rows.length - 1)); return true;
-			case 'down': setRowIndex((r) => clamp(r + 1, 0, rows.length - 1)); return true;
-			case 'left': setColumn(row.id, clamp(columnOf(row) - 1, 0, row.items.length - 1)); return true;
-			case 'right': setColumn(row.id, clamp(columnOf(row) + 1, 0, row.items.length - 1)); return true;
+			case 'up':
+				if (zone === 'strip') { setZone('grid'); setRow(rows - 1); return true; }
+				if (row > 0) setRow(row - 1);
+				return true;
+			case 'down':
+				if (zone === 'grid') {
+					if (row < rows - 1) setRow(row + 1);
+					else { setZone('strip'); setStripIndex(clamp(col, 0, Math.max(0, controls.length - 1))); }
+				}
+				return true;
+			case 'left':
+				if (zone === 'strip') setStripIndex((i) => clamp(i - 1, 0, controls.length - 1));
+				else setCol((c) => clamp(c - 1, 0, itemsInRow(row) - 1));
+				return true;
+			case 'right':
+				if (zone === 'strip') setStripIndex((i) => clamp(i + 1, 0, controls.length - 1));
+				else setCol((c) => clamp(c + 1, 0, itemsInRow(row) - 1));
+				return true;
 			case 'enter': {
-				const item = row.items[columnOf(row)];
-				if (item) onActivate(row.id, item);
+				const item = zone === 'grid' ? apps[row * COLUMNS + col] : controls[stripIndex];
+				if (!item) return true;
+				if (zone === 'grid') onActivateApp(item);
+				else onActivateControl(item);
 				return true;
 			}
-			case 'back': return true;   // swallow: Back on the home screen does nothing
+			case 'back':
+				// Back on the home screen does nothing, but it does lift focus out of the strip.
+				if (zone === 'strip') setZone('grid');
+				return true;
 		}
-	}, [rows, rowIndex, columns, onActivate]);
+	}, [apps, controls, zone, row, col, stripIndex, rows, onActivateApp, onActivateControl]);
 
 	useKeys(handleKey, active);
 
 	return (
 		<div class="screen">
-			<Backdrop accent={accent} />
-			<Header now={now} />
-			<Clock now={now} format={timeFormat} />
-			<div class="rows">
-				{rows.map((row, i) => (
-					<Row
-						key={row.id}
-						label={row.label}
-						items={row.items}
-						emptyText={row.emptyText}
-						focused={i === rowIndex}
-						selected={columnOf(row)}
-						onSelect={(col) => { setRowIndex(i); setColumn(row.id, col); }}
-						onActivate={(col) => onActivate(row.id, row.items[col])}
+			<div class="home">
+				<Header now={now} />
+				<Clock now={now} format={timeFormat} />
+				<div class="home__grid">
+					<AppGrid
+						items={apps}
+						focused={active && zone === 'grid'}
+						row={row}
+						col={col}
+						onHover={(r, c) => { setZone('grid'); setRow(r); setCol(c); }}
+						onActivate={onActivateApp}
 					/>
-				))}
+				</div>
+				<div class="home__strip">
+					<InputStrip
+						items={controls}
+						focused={active && zone === 'strip'}
+						selected={stripIndex}
+						onHover={(i) => { setZone('strip'); setStripIndex(i); }}
+						onActivate={onActivateControl}
+					/>
+				</div>
 			</div>
 		</div>
 	);

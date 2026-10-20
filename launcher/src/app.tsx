@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'preact/hooks';
-import {Home, type HomeRow} from './screens/Home';
+import {Home} from './screens/Home';
 import {Settings, type SettingsTab} from './screens/Settings';
 import type {OptionItem} from './components/OptionList';
 import {Toast, type ToastMessage} from './components/Toast';
@@ -11,18 +11,20 @@ import {isWebOS} from './lib/luna';
 import {hidePointerOnForeground} from './lib/pointer';
 import {loadConfig, saveConfig, toggleId, type UserConfig} from './lib/storage';
 import {appTile, inputTile, pickInOrder} from './lib/tiles';
-import {accentFor} from './lib/accent';
+import {accentFor, plateFor} from './lib/accent';
 import {TIMING} from './config/constants';
 
 type Screen = 'home' | 'settings';
 
-const ROW = {apps: 'apps', sources: 'sources', misc: 'misc'} as const;
-const MISC = {lgHome: 'lg-home', settings: 'settings'} as const;
+const ROW = {apps: 'apps', sources: 'sources'} as const;
+const CONTROL = {lgHome: 'lg-home', settings: 'settings'} as const;
 const OPTION = {useHomebrew: 'use-homebrew'} as const;
 
-const MISC_TILES: TileModel[] = [
-	{key: MISC.lgHome, label: 'LG Home', glyph: 'house'},
-	{key: MISC.settings, label: 'Settings', glyph: 'gear'}
+/** The two system shortcuts that ride in the "Inputs & controls" strip, after the
+ *  sources - the same order the stock home uses. */
+const CONTROL_TILES: TileModel[] = [
+	{key: CONTROL.settings, label: 'Settings', glyph: 'gear'},
+	{key: CONTROL.lgHome, label: 'LG Home', glyph: 'house'}
 ];
 
 export function App () {
@@ -31,6 +33,7 @@ export function App () {
 	const [apps, setApps] = useState<AppEntry[]>([]);
 	const [inputs, setInputs] = useState<InputSource[]>([]);
 	const [accents, setAccents] = useState<Record<string, string>>({});
+	const [plates, setPlates] = useState<Record<string, string>>({});
 	const [toast, setToast] = useState<ToastMessage | null>(null);
 	const toastTimer = useRef(0);
 
@@ -56,15 +59,24 @@ export function App () {
 	}, [config.useHomebrew, showToast]);
 
 	// The accent colours light the backdrop, and they come from the icons, so they can
-	// only be worked out once the app list has arrived.
+	// only be worked out once the app list has arrived. The plates (the icon's own
+	// background colour) arrive with them.
 	useEffect(() => {
 		if (!apps.length) return;
 		let cancelled = false;
-		Promise.all(apps.map((a) => accentFor(a.id, a.iconUrl, a.color))).then((colours) => {
+		Promise.all(apps.map((a) => Promise.all([
+			accentFor(a.id, a.iconUrl, a.color),
+			plateFor(a.id, a.iconUrl)
+		]))).then((sampled) => {
 			if (cancelled) return;
-			const map: Record<string, string> = {};
-			apps.forEach((a, i) => { map[a.id] = colours[i]; });
-			setAccents(map);
+			const colours: Record<string, string> = {};
+			const plates: Record<string, string> = {};
+			apps.forEach((a, i) => {
+				colours[a.id] = sampled[i][0];
+				if (sampled[i][1]) plates[a.id] = sampled[i][1] as string;
+			});
+			setAccents(colours);
+			setPlates(plates);
 		});
 		return () => { cancelled = true; };
 	}, [apps]);
@@ -82,20 +94,20 @@ export function App () {
 
 	const updateConfig = (next: UserConfig) => { setConfig(next); saveConfig(next); };
 
-	// ----- derived rows -----
+	// ----- derived content -----
 	const shownApps = useMemo(() => pickInOrder(apps, config.appIds, (a) => a.id), [apps, config.appIds]);
 	const shownInputs = useMemo(
 		() => (config.sourceIds ? pickInOrder(inputs, config.sourceIds, (s) => s.appId) : inputs),
 		[inputs, config.sourceIds]
 	);
 
-	const withAccent = useCallback((a: AppEntry) => appTile(a, accents[a.id]), [accents]);
+	const withAccent = useCallback(
+		(a: AppEntry) => appTile(a, accents[a.id], plates[a.id]),
+		[accents, plates]
+	);
 
-	const rows: HomeRow[] = useMemo(() => [
-		{id: ROW.apps, label: 'Apps', items: shownApps.map(withAccent), emptyText: 'No apps selected — add some in Settings'},
-		{id: ROW.sources, label: 'Sources', items: shownInputs.map(inputTile), emptyText: 'No sources selected'},
-		{id: ROW.misc, label: 'More', items: MISC_TILES}
-	], [shownApps, shownInputs, withAccent]);
+	const appTiles = useMemo(() => shownApps.map(withAccent), [shownApps, withAccent]);
+	const controlTiles = useMemo(() => shownInputs.map(inputTile).concat(CONTROL_TILES), [shownInputs]);
 
 	const tabs: SettingsTab[] = useMemo(() => [
 		{id: ROW.apps, label: 'Apps', noun: 'apps', items: apps.map(withAccent), shown: shownApps.map(withAccent)},
@@ -116,13 +128,14 @@ export function App () {
 		launchApp(id).catch(() => showToast(`Couldn't open ${label}`, 'error'));
 	};
 
-	const onActivate = useCallback((rowId: string, item: TileModel) => {
-		if (rowId === ROW.misc) {
-			if (item.key === MISC.settings) setScreen('settings');
-			else if (item.key === MISC.lgHome) launchLgHome().catch(() => showToast("Couldn't open LG Home", 'error'));
-			return;
-		}
+	const onActivateApp = useCallback((item: TileModel) => {
 		open(item.key, item.label);
+	}, [showToast]);
+
+	const onActivateControl = useCallback((item: TileModel) => {
+		if (item.key === CONTROL.settings) setScreen('settings');
+		else if (item.key === CONTROL.lgHome) launchLgHome().catch(() => showToast("Couldn't open LG Home", 'error'));
+		else open(item.key, item.label);
 	}, [showToast]);
 
 	const onToggle = useCallback((tabId: string, key: string) => {
@@ -138,7 +151,7 @@ export function App () {
 		if (optionId === OPTION.useHomebrew) updateConfig({...config, useHomebrew: !config.useHomebrew});
 	}, [config]);
 
-	/** Replace a row's order with `keys` (the full list of what's shown). */
+	/** Replace a list's order with `keys` (the full list of what's shown). */
 	const onReorder = useCallback((tabId: string, keys: string[]) => {
 		if (tabId === ROW.apps) updateConfig({...config, appIds: keys});
 		else updateConfig({...config, sourceIds: keys});
@@ -147,7 +160,13 @@ export function App () {
 	return (
 		<>
 			{/* Home stays mounted under Settings so it keeps its focus position. */}
-			<Home rows={rows} active={screen === 'home'} onActivate={onActivate} />
+			<Home
+				apps={appTiles}
+				controls={controlTiles}
+				active={screen === 'home'}
+				onActivateApp={onActivateApp}
+				onActivateControl={onActivateControl}
+			/>
 			{screen === 'settings' && <Settings tabs={tabs} options={options} active onToggle={onToggle} onReorder={onReorder} onOption={onOption} onClose={() => setScreen('home')} />}
 			<Toast message={toast} />
 		</>

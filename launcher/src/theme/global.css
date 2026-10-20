@@ -1,9 +1,9 @@
 /* Global styles. Values come from tokens.ts via CSS custom properties (see applyTokens).
    Written for Chrome 79: no flex `gap`, no `inset`, no `aspect-ratio`, no `@property`.
 
-   The look is Apple-TV-like: a dark room whose lighting takes on the colour of whatever
-   is focused (components/Backdrop.tsx), left-aligned shelves, and focus expressed as
-   scale + elevation rather than a hard ring. */
+   Home is the 2024-LG-style layout: a navy room, five landscape cards across, the clock
+   in the top-right corner, and an "Inputs & controls" strip along the bottom. Focus is a
+   white ring offset from the card - not the scale-and-glow of the previous design. */
 
 @font-face {
 	font-family: 'Inter Variable';
@@ -36,38 +36,12 @@ html, body {
 	position: absolute;
 	left: 0; top: 0;
 	width: 100%; height: 100%;
-	background: var(--color-bg);
+	background:
+		radial-gradient(ellipse 78% 58% at 50% 0%, rgba(68, 70, 128, 0.42) 0%, rgba(30, 31, 62, 0) 72%),
+		linear-gradient(180deg, #15152b 0%, #101021 46%, #0a0a14 100%);
 }
 
-/* ---------- backdrop: the room lighting ---------- */
-
-.backdrop {
-	position: absolute;
-	left: 0; top: 0;
-	width: 100%; height: 100%;
-	overflow: hidden;
-	pointer-events: none;
-}
-
-.backdrop__wash {
-	position: absolute;
-	left: -10%; top: -14%;
-	width: 120%; height: 140%;
-	opacity: 0;
-	transition: opacity 520ms ease-out;
-	will-change: opacity;
-}
-.backdrop__wash--on { opacity: 1; }
-
-/* keeps the bottom row legible whatever the wash is doing */
-.backdrop__scrim {
-	position: absolute;
-	left: 0; right: 0; bottom: 0;
-	height: 42%;
-	background: linear-gradient(to top, rgba(3, 3, 6, 0.94) 0%, rgba(3, 3, 6, 0.5) 34%, rgba(3, 3, 6, 0) 100%);
-}
-
-/* ---------- header ---------- */
+/* ---------- greeting (top-left) ---------- */
 
 .header {
 	position: absolute;
@@ -78,100 +52,91 @@ html, body {
 .header__greeting {
 	margin: 0;
 	font-size: var(--font-greeting);
-	font-weight: 500;
-	letter-spacing: 0.22em;
+	font-weight: 450;
+	/* whole pixels only - a fractional advance breaks the text layer on this TV */
+	letter-spacing: 5px;
 	text-transform: uppercase;
-	color: var(--color-text-muted);
+	color: rgba(255, 255, 255, 0.55);
 }
+
+/* ---------- clock ---------- */
 
 .clock {
 	position: absolute;
 	right: var(--layout-edge-padding);
-	top: var(--layout-header-top);
+	top: var(--layout-clock-top);
 	text-align: right;
-	font-weight: 300;
-	line-height: 1.2;
 	pointer-events: none;
 }
-.clock__line {
-	font-size: var(--font-clock);
-	letter-spacing: 0.03em;
-	color: var(--color-text-muted);
-}
 .clock__time {
-	margin-top: 8px;
 	font-size: var(--font-clock-time);
-	font-weight: 200;
-	letter-spacing: 0.01em;
+	/* 400, and no letter-spacing: fractional glyph advances are mis-rasterised by
+	   webOS 6's Chrome 79 and poison the whole text layer (see the note in Home.tsx). */
+	font-weight: 400;
+	line-height: 1.08;
+	letter-spacing: normal;
 	color: var(--color-text-primary);
 }
 .clock__period {
-	margin-left: 9px;
+	margin-left: 11px;
 	font-size: var(--font-clock-period);
 	font-weight: 300;
-	letter-spacing: 0.08em;
-	color: var(--color-text-secondary);
+	letter-spacing: normal;
+	color: rgba(255, 255, 255, 0.9);
+}
+.clock__date {
+	margin-top: 7px;
+	font-size: var(--font-clock-date);
+	font-weight: 400;
+	letter-spacing: normal;
+	color: rgba(255, 255, 255, 0.62);
 }
 
-/* ---------- rows ---------- */
+/* ---------- home layout ---------- */
 
-.rows {
+.home {
+	position: absolute;
+	left: 0; top: 0;
+	width: 100%; height: 100%;
+}
+
+.home__grid {
+	position: absolute;
+	left: var(--layout-edge-padding);
+	top: var(--layout-grid-top);
+}
+
+.home__strip {
 	position: absolute;
 	left: var(--layout-edge-padding);
 	right: var(--layout-edge-padding);
-	top: var(--layout-rows-top);
+	bottom: var(--layout-strip-bottom);
 }
 
-.row { margin-bottom: var(--layout-row-gap); }
-.row:last-child { margin-bottom: 0; }
+/* ---------- app grid ---------- */
 
-.row__label {
-	margin: 0 0 var(--layout-row-label-gap);
-	font-size: var(--font-row-label);
-	font-weight: 600;
-	letter-spacing: 0.24em;
-	text-transform: uppercase;
-	color: var(--color-text-primary);
-	opacity: 0.4;
-	transition: opacity var(--motion-focus-ms) ease-out;
-}
-.row--focused .row__label { opacity: 1; }
-
-/* The viewport clips and fades its edges; the track slides. Extra vertical padding
-   leaves room for the focus scale so tiles are never clipped while enlarged. */
-.row__viewport {
+.cards {
+	position: relative;
 	overflow: hidden;
-	padding: 18px 0;
-	margin: -18px 0;
-	opacity: var(--motion-unfocused-row-opacity);
-	transition: opacity var(--motion-focus-ms) ease-out;
-}
-.row--focused .row__viewport { opacity: 1; }
-
-.row__viewport--fade-left {
-	-webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 1) 70px, rgba(0, 0, 0, 1) 100%);
-	mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 1) 70px, rgba(0, 0, 0, 1) 100%);
-}
-.row__viewport--fade-right {
-	-webkit-mask-image: linear-gradient(to left, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 1) 70px, rgba(0, 0, 0, 1) 100%);
-	mask-image: linear-gradient(to left, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 1) 70px, rgba(0, 0, 0, 1) 100%);
-}
-.row__viewport--fade-left.row__viewport--fade-right {
-	-webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 1) 70px, rgba(0, 0, 0, 1) calc(100% - 70px), rgba(0, 0, 0, 0) 100%);
-	mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 1) 70px, rgba(0, 0, 0, 1) calc(100% - 70px), rgba(0, 0, 0, 0) 100%);
+	/* room for the focus ring, which sits outside the card: the negative margin puts
+	   the padding back where the layout expects it */
+	padding: 10px;
+	margin: -10px;
+	width: calc(var(--layout-card-width) * 5 + var(--layout-card-gap-x) * 4 + 20px);
 }
 
-.row__track {
-	display: flex;
-	flex-direction: row;
+.cards__track {
+	display: grid;
+	grid-auto-rows: max-content;
+	grid-column-gap: var(--layout-card-gap-x);
+	grid-row-gap: var(--layout-card-gap-y);
+	justify-content: start;
 	transition: transform var(--motion-scroll-ms) cubic-bezier(0.22, 0.68, 0.16, 1);
-	will-change: transform;
 }
 
-.row__empty {
-	font-size: var(--font-tile-label);
+.cards__empty {
+	font-size: var(--font-card-label);
 	color: var(--color-text-muted);
-	font-weight: 400;
 }
 
 /* ---------- tiles ---------- */
@@ -198,8 +163,6 @@ html, body {
 		box-shadow var(--motion-focus-ms) ease-out,
 		background var(--motion-focus-ms) ease-out;
 }
-/* the shelf breathes: neighbours settle back a little while one tile is focused */
-.row--focused .tile:not(.tile--focused) .tile__box { transform: scale(0.90); }
 
 .tile--focused .tile__box {
 	transform: scale(var(--motion-focus-scale));
@@ -209,6 +172,82 @@ html, body {
 		0 28px 56px rgba(0, 0, 0, 0.8);
 	z-index: 3;
 }
+
+/* --- the landscape card used on the home screen --- */
+
+.tile--card {
+	position: relative;
+	width: var(--layout-card-width);
+	margin-right: 0;
+	text-align: center;
+}
+
+.tile--card .tile__box {
+	width: 100%;
+	height: var(--layout-card-height);
+	border-radius: var(--layout-card-radius);
+	background: var(--color-card-bg);
+	box-shadow: 0 0 0 1px var(--color-card-edge);
+	transform: none;
+	overflow: hidden;
+}
+.tile--card.tile--focused .tile__box {
+	background: var(--color-card-bg-focus);
+	box-shadow: 0 0 0 1px var(--color-card-edge);
+	transform: none;
+}
+
+/* The focus ring sits outside the card, with a gap - a wrapper pseudo-element,
+   because Chrome 79 cannot round an `outline`. */
+.tile--card::after {
+	content: '';
+	position: absolute;
+	left: -8px;
+	top: -8px;
+	width: calc(100% + 16px);
+	height: calc(var(--layout-card-height) + 16px);
+	border-radius: calc(var(--layout-card-radius) + 8px);
+	box-shadow: inset 0 0 0 3px var(--color-ring);
+	opacity: 0;
+	transition: opacity var(--motion-focus-ms) ease-out;
+	pointer-events: none;
+	z-index: 5;
+}
+.tile--card.tile--focused::after { opacity: 1; }
+
+.tile--card .tile__image {
+	position: absolute;
+	left: 0; top: 0;
+	width: 100%; height: 100%;
+	object-fit: contain;
+	padding: 14px 40px;
+}
+/* plated card: the icon's own background is the card, so let the art fill the height */
+.tile--card .tile__image--plate {
+	padding: 0;
+}
+.tile--card .tile__image--glyph {
+	left: 30%; top: 30%;
+	width: 40%; height: 40%;
+	padding: 0;
+	object-fit: contain;
+	filter: brightness(2.6);
+}
+.tile--card .tile__monogram { font-size: 74px; }
+
+.tile--card .tile__label {
+	width: 100%;
+	margin: var(--layout-card-label-gap) 0 0;
+	height: auto;
+	font-size: var(--font-card-label);
+	font-weight: 400;
+	line-height: 1.25;
+	color: rgba(255, 255, 255, 0.9);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.tile--card.tile--focused .tile__label { color: var(--color-text-primary); }
 
 .tile__image {
 	position: absolute;
@@ -258,7 +297,6 @@ html, body {
 	overflow: hidden;
 	transition: color var(--motion-focus-ms) ease-out;
 }
-.row--focused .tile__label { color: var(--color-text-secondary); }
 .tile--focused .tile__label { color: var(--color-text-primary); }
 
 .tile__badge {
@@ -274,6 +312,68 @@ html, body {
 }
 .tile__badge svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 
+/* ---------- inputs & controls strip ---------- */
+
+.strip__label {
+	margin: 0 0 var(--layout-strip-label-gap);
+	font-size: var(--font-strip-label);
+	font-weight: 450;
+	letter-spacing: normal;
+	color: rgba(255, 255, 255, 0.92);
+}
+
+.strip__row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.chip {
+	display: flex;
+	align-items: center;
+	height: var(--layout-chip-height);
+	min-width: 236px;
+	margin-right: var(--layout-chip-gap);
+	padding: 0 32px;
+	border-radius: 16px;
+	background: var(--color-chip-bg);
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
+	transition: background var(--motion-focus-ms) ease-out, box-shadow var(--motion-focus-ms) ease-out;
+}
+.chip:last-child { margin-right: 0; }
+
+.chip--focused {
+	background: var(--color-chip-bg-focus);
+	box-shadow: inset 0 0 0 3px var(--color-ring);
+}
+
+.chip__icon {
+	width: 40px;
+	height: 40px;
+	margin-right: 18px;
+	object-fit: contain;
+	filter: brightness(2.4);
+}
+
+.chip__glyph {
+	width: 38px;
+	height: 38px;
+	margin-right: 18px;
+	flex: 0 0 auto;
+	fill: none;
+	stroke: var(--color-text-primary);
+	stroke-width: 1.6;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.chip__label {
+	font-size: var(--font-chip-label);
+	font-weight: 450;
+	color: var(--color-text-primary);
+	white-space: nowrap;
+}
+
 /* ---------- settings ---------- */
 
 .settings {
@@ -287,7 +387,7 @@ html, body {
 	margin: 0;
 	font-size: var(--font-settings-title);
 	font-weight: 200;
-	letter-spacing: -0.01em;
+	letter-spacing: normal;
 	color: var(--color-text-primary);
 }
 .settings__hint {
@@ -305,7 +405,7 @@ html, body {
 	padding: 10px 4px;
 	font-size: var(--font-settings-tab);
 	font-weight: 500;
-	letter-spacing: 0.12em;
+	letter-spacing: 3px;
 	text-transform: uppercase;
 	color: var(--color-text-muted);
 	border-bottom: 3px solid transparent;
@@ -338,6 +438,17 @@ html, body {
 	color: var(--color-button-active-text);
 }
 
+/* webOS 6 (Chrome 79) repaint nudge.
+   The first frame painted after a page reload can be rasterised into a surface the TV's
+   compositor then overwrites, which leaves the top strip (greeting, clock, date) drawing
+   garbage glyphs. A later style change forces that text to re-rasterise correctly, so
+   main.tsx adds `.settled` a moment after launch and these near-invisible nudges (a
+   fraction of a pixel of tracking) do the repair. Fresh launches are usually fine; this
+   covers the reload path, e.g. after a webview crash. */
+.settled .clock__time { letter-spacing: 0.004em; }
+.settled .clock__date { letter-spacing: 0.005em; }
+.settled .header__greeting { letter-spacing: 5.05px; }
+
 .grid__viewport {
 	overflow: hidden;
 	height: 720px;
@@ -350,7 +461,6 @@ html, body {
 	grid-row-gap: 40px;
 	justify-content: center;
 	transition: transform var(--motion-scroll-ms) cubic-bezier(0.22, 0.68, 0.16, 1);
-	will-change: transform;
 }
 .grid__track .tile { margin-right: 0; }
 .tile--dimmed .tile__box { opacity: 0.45; }

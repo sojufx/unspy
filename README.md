@@ -31,8 +31,8 @@ Same TV. Same remote. Same apps. Same living room.
 
 |  **Before — stock LG webOS 6** | **After — the unspy launcher** |
 |:--:|:--:|
-| [![Stock LG webOS 6 home screen: a "Free on LG Channels" promo rail with sponsored Killer Joe, 30 Days of Night and The Three Musketeers tiles](media/before-lg-home.jpg)](media/before-lg-home.jpg) | [![The unspy launcher: "Good evening" greeting, a large clock, and clean APPS, SOURCES and MORE rows of app tiles on a dark blue gradient](media/after-launcher.jpg)](media/after-launcher.jpg) |
-| A shop window. Sponsored tiles, "Free on LG Channels", a rail of whatever LG is being paid to show you. | Greeting, clock, and your apps. Nothing you didn't ask for. |
+| [![Stock LG webOS 6 home screen: a "Free on LG Channels" promo rail with sponsored Killer Joe, 30 Days of Night and The Three Musketeers tiles](media/before-lg-home.jpg)](media/before-lg-home.jpg) | [![The unspy launcher: a "Good afternoon" greeting top-left, a clock top-right, and a five-column grid of app cards with labels, above an "Inputs & controls" strip](media/after-launcher.jpg)](media/after-launcher.jpg) |
+| A shop window. Sponsored tiles, "Free on LG Channels", a rail of whatever LG is being paid to show you. | Greeting, clock, five columns of your apps, and your inputs. Nothing you didn't ask for. |
 
 The left photo is the TV as it shipped. The right photo is the same panel, with the stock home screen gone and the HOME button rewired to my launcher — captured after a cold boot, on the actual TV, on a Sunday evening.
 
@@ -56,24 +56,24 @@ The left photo is the TV as it shipped. The right photo is the same panel, with 
 
 This is the part you look at every day, so it got the most attention. It is a from-scratch restyle of the excellent [`partridgeworks/webos-launcher`](https://github.com/partridgeworks/webos-launcher) (MIT), rebuilt into a proper 10-foot UI.
 
-[![The unspy launcher showing the APPS, SOURCES and MORE rows](media/launcher-cdp.png)](media/launcher-cdp.png)
+[![The unspy launcher home screen: five columns of app cards with labels, a greeting top-left, a clock top-right and an "Inputs & controls" strip along the bottom](media/launcher-cdp.png)](media/launcher-cdp.png)
 
 **What it is**
 
-* **The room lights up in the colour of whatever you select.** Every app icon is sampled — the average of its non-black, non-white pixels, contrast-stretched — and the background washes to that colour as you move along a row. Apple TV does this with artwork; this does it with app icons, on a 2019 browser, without animating a gradient (two cross-fading layers instead).
-* A greeting that knows the time of day, and a large clock. Both are the only things on screen that change on their own.
-* Three rows: **APPS** (your apps), **SOURCES** (Live TV, HDMI inputs) and **MORE** (LG Home, Settings).
-* Square, evenly spaced tiles with a real focus state — the selected tile lifts and grows, everything else dims slightly.
+* **Five columns of full-bleed brand cards.** The TV only hands a sideloaded web app a square icon, so each card is painted with that icon's *own* background colour — sampled from its four corners — and the square bleeds to the card edge: Apple TV goes black-on-black, Netflix white-on-white, Channel 4 green-on-green. Icons with transparent edges fall back to the neutral plate. Every icon is sampled once, at launch.
+* A greeting that knows the time of day, top-left, and the clock top-right with the date under it. Both are the only things on screen that change on their own.
+* **Two rows of five, scrolled a row at a time**, with the app's name under every card. Focus is an offset white ring — nothing scales, lifts or glows, so your eye stays on the artwork and the grid only moves when it has to.
+* **An "Inputs & controls" strip** along the bottom: Live TV, your HDMI inputs named the way you named them, Settings and LG Home. One press down from the last row; up returns to the grid.
 * **Sources come from the TV**, named the way you named them. App tiles come from a bundled catalogue, because webOS 6 does not let a sideloaded web app enumerate installed apps or read their icons — only apps your TV reports as installed are shown. An opt-in live app list (via Homebrew Channel) pulls the real list and the real icons.
 * No rails, no recommendations, no "free" anything, no LG branding, nothing that can be sold.
 
 **Everything is a number you can change.** The entire design system lives in one file — [`launcher/src/theme/tokens.ts`](launcher/src/theme/tokens.ts):
 
 ```ts
-export const COLOR = { bg: '#05050A', textPrimary: '#F4F4F6', ... };
-export const FONT  = { greeting: 30, clockTime: 52, tileLabel: 18, ... };
-export const LAYOUT = { edgePadding: 110, tileSize: 168, tileGap: 28, tileRadius: 38, ... };
-export const MOTION = { focusMs: 180, focusScale: 1.14, ... };
+export const COLOR = { bg: '#0B0B16', textPrimary: '#FFFFFF', ... };
+export const FONT  = { greeting: 26, clockTime: 58, cardLabel: 24, ... };
+export const LAYOUT = { edgePadding: 110, gridTop: 200, cardWidth: 308, cardHeight: 190, cardGapX: 40, ... };
+export const MOTION = { focusMs: 160, scrollMs: 280, focusScale: 1.14, ... };
 ```
 
 Change a colour or a size, `npm run build && npm run package`, install. That is the whole customisation story — no CSS hunting.
@@ -215,7 +215,7 @@ I would rather you trust the parts that are true.
 * **It breaks a few things on purpose.** No DLNA browsing from the TV, no AirPlay/Miracast discovery *to* the TV (`LGwebOSTV.local` stops answering), and no control from the LG ThinQ app. Each is documented and independently reversible.
 * **It is not a security boundary.** Hosts-file blackholing is a roadblock, not a wall. Anyone with root on the TV can undo it, and it does nothing about what the TV sends over a tunnel.
 * **IPv6 discovery is not firewalled on this set** — the kernel has no `ip6_tables`. Block it at your router if you care. The script says so out loud at boot.
-* **The launcher is a restyle of someone else's app**, not a from-scratch rewrite. Upstream is MIT and is credited in full. What I changed is the visual layer (`theme/tokens.ts`, `theme/global.css`, plus a new `components/Backdrop.tsx` and `lib/accent.ts`) and a few layout decisions in `Home.tsx` / `Row.tsx`. The Luna plumbing, app catalogue and packaging are upstream's work, and they are good work.
+* **The launcher is a restyle of someone else's app**, not a from-scratch rewrite. Upstream is MIT and is credited in full. What I changed is the visual layer (`theme/tokens.ts`, `theme/global.css`, the card grid in `components/AppGrid.tsx` / `Tile.tsx` / `InputStrip.tsx`, and `lib/accent.ts`) plus the layout and key handling in `Home.tsx`. The Luna plumbing, app catalogue and packaging are upstream's work, and they are good work.
 * **Boot is not instant.** A few seconds of LG's UI before the launcher takes over.
 
 ---

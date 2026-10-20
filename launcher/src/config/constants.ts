@@ -31,7 +31,7 @@ export const KEY = {
 export const TIMING = {
 	lunaTimeoutMs: 4000,
 	toastMs: 2200,
-	clockTickMs: 1000,
+	clockTickMs: 10000,
 	longPressMs: 600        // OK held this long enters/leaves re-order mode
 } as const;
 
